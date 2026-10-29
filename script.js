@@ -78,7 +78,7 @@ document.querySelectorAll('.card').forEach(card => {
                 state.baseMenu = { name: null, price: 0, node: null };
             } else {
                 btn.classList.add('active-state');
-                btn.textContent = 'AKTIF';
+                btn.textContent = 'TERPILIH';
                 state.baseMenu = { name, price, node: btn };
             }
         } else if (type === 'topping') {
@@ -90,7 +90,7 @@ document.querySelectorAll('.card').forEach(card => {
             } else {
                 state.toppings.set(name, price);
                 btn.classList.add('active-state');
-                btn.textContent = 'AKTIF';
+                btn.textContent = 'TERPILIH';
             }
         }
         updateSummary();
