@@ -1,215 +1,281 @@
-const container = document.getElementById('order-container');
-const btnClear = document.getElementById('clear-all-btn');
-
-// selector tab navigation
+// Reference Node DOM Seller Dashboard
 const tabOrdersBtn = document.getElementById('tab-orders-btn');
-const tabStatsBtn = document.getElementById('tab-stats-btn');
+const tabRekapBtn = document.getElementById('tab-rekap-btn');
 const tabOrdersContent = document.getElementById('tab-orders');
-const tabStatsContent = document.getElementById('tab-stats');
+const tabRekapContent = document.getElementById('tab-rekap');
 
-// selector custom confirm modal
+// Container Pesanan & Stats
+const questLogContainer = document.getElementById('quest-log-container');
+const omzetEl = document.getElementById('total-omzet');
+const totalOrdersCountEl = document.getElementById('total-orders-count');
+const btnFormatData = document.getElementById('btn-format-data');
+
+// Custom Confirm Modal Elements
 const confirmModal = document.getElementById('confirm-modal');
-const confirmMessage = document.getElementById('confirm-message');
-const btnYesConfirm = document.getElementById('btn-yes-confirm');
-const btnCancelConfirm = document.getElementById('btn-cancel-confirm');
+const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
+const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// daftar varian dan topping
-const ALL_VARIANTS = [
-    'Original',
-    'Coklat',
-    'Strawberry',
-    'Melon',
-    'Vanilla',
-    'Taro'
-];
+// Master List Produk untuk Rekap Bar
+const baseList = ["Original", "Pop Ice Coklat", "Pop Ice Melon", "Pop Ice Strawberry", "Pop Ice Taro", "Pop Ice Vanilla"];
+const toppingList = ["Oreo", "Crumble", "Keju", "Meses"];
 
-const ALL_TOPPINGS = [
-    'Oreo',
-    'Crumble',
-    'Meses',
-    'Keju'
-];
+/**
+ * Format Angka ke Rupiah (misal: 6.000)
+ */
+const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-let onConfirmAction = null;
+/**
+ * Ambil Log Pesanan Aktif & Selesai dari localStorage
+ */
+const getOrders = () => JSON.parse(localStorage.getItem('kacau_orders')) || [];
+const getCompletedOrders = () => JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
+const saveOrders = (orders) => localStorage.setItem('kacau_orders', JSON.stringify(orders));
 
-// --- switch tab handler
-tabOrdersBtn.addEventListener('click', () => {
-    tabOrdersBtn.classList.add('active');
-    tabStatsBtn.classList.remove('active');
-    tabOrdersContent.classList.add('active');
-    tabStatsContent.classList.remove('active');
-});
+/**
+ * Tab Switcher Handler (Pesanan Masuk vs Rekap Penjualan)
+ */
+if (tabOrdersBtn && tabRekapBtn) {
+    tabOrdersBtn.addEventListener('click', () => {
+        tabOrdersBtn.classList.add('active');
+        tabRekapBtn.classList.remove('active');
+        if (tabOrdersContent) tabOrdersContent.style.display = 'block';
+        if (tabRekapContent) tabRekapContent.style.display = 'none';
+    });
 
-tabStatsBtn.addEventListener('click', () => {
-    tabStatsBtn.classList.add('active');
-    tabOrdersBtn.classList.remove('active');
-    tabStatsContent.classList.add('active');
-    tabOrdersContent.classList.remove('active');
-    renderStats();
-});
+    tabRekapBtn.addEventListener('click', () => {
+        tabRekapBtn.classList.add('active');
+        tabOrdersBtn.classList.remove('active');
+        if (tabRekapContent) tabRekapContent.style.display = 'block';
+        if (tabOrdersContent) tabOrdersContent.style.display = 'none';
+        renderRekapStats();
+    });
+}
 
-// custom confirm modal helper
-const showCustomConfirm = (pesan, action) => {
-    confirmMessage.textContent = pesan;
-    onConfirmAction = action;
-    confirmModal.classList.add('active');
-};
+/**
+ * Render Antrean Pesanan Seller Dashboard (FIFO: Pesanan awal paling atas)
+ */
+const renderSellerDashboard = () => {
+    const orders = getOrders();
 
-btnYesConfirm.addEventListener('click', () => {
-    if (onConfirmAction) onConfirmAction();
-    confirmModal.classList.remove('active');
-});
+    if (!questLogContainer) return;
+    questLogContainer.innerHTML = '';
 
-btnCancelConfirm.addEventListener('click', () => {
-    confirmModal.classList.remove('active');
-});
-
-// render pesanan masuk
-const renderBoard = () => {
-    const logs = JSON.parse(localStorage.getItem('kacau_orders')) || [];
-    container.innerHTML = '';
-
-    if (logs.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 50px;">NO ACTIVE DATA</div>';
+    if (orders.length === 0) {
+        questLogContainer.innerHTML = `
+            <div style="text-align: center; padding: 30px 10px; background: var(--c-green-light); border: 4px solid var(--c-purple); margin-top: 15px;">
+                <p style="font-size: 0.65rem; color: var(--c-purple);">BELUM ADA PESANAN MASUK</p>
+            </div>
+        `;
+        renderRekapStats();
         return;
     }
 
-    logs.slice().reverse().forEach(log => {
+    // Iterasi FIFO (REQ-001 paling atas)
+    orders.forEach((order, index) => {
         const card = document.createElement('div');
-        card.className = 'quest-card';
-        card.innerHTML = `
-            <div class="quest-data">
-                <div style="background: var(--c-purple); color: var(--c-yellow); padding: 5px; display: inline-block;">[${log.id}]</div>
-                <div style="margin-top: 15px; font-weight: bold; color: var(--c-purple); font-size: 0.9rem;">> ${log.customer}</div>
-                <div style="margin-top: 5px;">BASE: ${log.base}</div>
-                <div>EXT: ${log.toppings}</div>
-                <div style="color: var(--c-green-dark); margin-top: 10px; font-weight: bold;">RP ${log.total.toLocaleString('id-ID')} | ${log.time}</div>
-            </div>
-            <button class="btn btn-invert" style="padding: 15px;" onclick="resolveQuest('${log.id}')">DONE</button>
-        `;
-        container.appendChild(card);
-    });
-};
+        card.style.cssText = 'background: var(--c-yellow); border: 4px solid var(--c-purple); padding: 15px; margin-bottom: 15px; box-shadow: 4px 4px 0 rgba(69, 12, 63, 0.2);';
 
-// render diagram batang
-const renderBarChart = (targetElId, dataMap) => {
-    const containerEl = document.getElementById(targetElId);
-    containerEl.innerHTML = '';
-
-    const entries = Object.entries(dataMap);
-    if (entries.length === 0) {
-        containerEl.innerHTML = '<div style="font-size: 0.6rem; color: var(--c-purple); padding: 10px 0;">BELUM ADA DATA</div>';
-        return;
-    }
-
-    entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-
-    const maxVal = Math.max(...Object.values(dataMap), 1);
-
-    entries.forEach(([label, count]) => {
-        const percentage = (count / maxVal) * 100;
-        const barRow = document.createElement('div');
-        barRow.className = 'bar-item';
-        barRow.innerHTML = `
-            <div class="bar-label" title="${label}">${label}</div>
-            <div class="bar-track">
-                <div class="bar-fill" style="width: ${percentage}%;"></div>
-            </div>
-            <div class="bar-count">${count}</div>
-        `;
-        containerEl.appendChild(barRow);
-    });
-};
-
-// render omzet dan data statistik
-const renderStats = () => {
-    const history = JSON.parse(localStorage.getItem('kacau_history')) || [];
-
-    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    const todayStr = new Date().toLocaleDateString('id-ID', dateOptions);
-
-    const statDateEl = document.getElementById('stat-date');
-    if (statDateEl) {
-        statDateEl.textContent = `TANGGAL: ${todayStr}`;
-    }
-    
-    let totalOmzet = 0;
-
-    let variantCount = {};
-    ALL_VARIANTS.forEach(v => variantCount[v] = 0);
-
-    let toppingCount = {};
-    ALL_TOPPINGS.forEach(t => toppingCount[t] = 0);
-
-    const todayHistory = history.filter(order => {
-        return order.date ? order.date === todayStr : true;
-    });
-
-    todayHistory.forEach(order => {
-        totalOmzet += order.total;
-        
-        if (order.base && variantCount.hasOwnProperty(order.base)) {
-            variantCount[order.base] += 1;
-        } else if (order.base) {
-            variantCount[order.base] = (variantCount[order.base] || 0) + 1;
+        let itemsHtml = '';
+        if (order.items && Array.isArray(order.items)) {
+            order.items.forEach(item => {
+                const qty = item.qty || 1;
+                const baseName = item.base || item.name || '-';
+                const topStr = item.toppings && item.toppings.length > 0 ? item.toppings.join(', ') : '-';
+                itemsHtml += `
+                    <div style="font-size: 0.55rem; color: var(--c-purple); margin-bottom: 8px; line-height: 1.5;">
+                        <div><strong>QTY:</strong> ${qty}x</div>
+                        <div><strong>BASE:</strong> ${baseName}</div>
+                        <div><strong>EXT:</strong> ${topStr}</div>
+                    </div>
+                `;
+            });
         }
 
-        if (order.toppings && order.toppings !== '-') {
-            const arrToppings = order.toppings.split(', ');
-            arrToppings.forEach(t => {
-                if (toppingCount.hasOwnProperty(t)) {
-                    toppingCount[t] += 1;
-                } else {
-                    toppingCount[t] = (toppingCount[t] || 0) + 1;
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div style="background: var(--c-purple); color: var(--c-yellow); padding: 5px 8px; font-size: 0.65rem; font-weight: bold;">
+                    [${order.id || 'REQ-001'}]
+                </div>
+                <button class="btn btn-invert" onclick="completeOrder(${index})" style="font-size: 0.55rem; padding: 8px 14px; cursor: pointer;">DONE</button>
+            </div>
+            
+            <div style="font-size: 0.75rem; font-weight: bold; color: var(--c-purple); margin-bottom: 10px;">
+                > ${order.customer || 'Pembeli'}
+            </div>
+
+            ${itemsHtml}
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.65rem; font-weight: bold; color: var(--c-purple); border-top: 2px dashed var(--c-purple); padding-top: 8px;">
+                <span style="color: #728c28;">RP ${formatNumber(order.total || 0)}</span>
+                <span>${order.time || ''}</span>
+            </div>
+        `;
+        questLogContainer.appendChild(card);
+    });
+
+    renderRekapStats();
+};
+
+/**
+ * Hitung Rekap Penjualan & Render Bar Progress Pixel Art (Sorted by Count Desc, then Name A-Z)
+ */
+const renderRekapStats = () => {
+    const completedOrders = getCompletedOrders();
+
+    // Omzet & Total Pesanan Selesai
+    const totalOmzet = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    if (omzetEl) omzetEl.textContent = formatNumber(totalOmzet);
+    if (totalOrdersCountEl) totalOrdersCountEl.textContent = completedOrders.length;
+
+    // Hitung Produk Terjual
+    const baseCounts = {};
+    baseList.forEach(b => baseCounts[b] = 0);
+
+    const toppingCounts = {};
+    toppingList.forEach(t => toppingCounts[t] = 0);
+
+    completedOrders.forEach(order => {
+        if (order.items && Array.isArray(order.items)) {
+            order.items.forEach(item => {
+                const qty = item.qty || 1;
+                if (item.base) {
+                    const matchedBase = baseList.find(b => b.toLowerCase() === item.base.toLowerCase()) || item.base;
+                    baseCounts[matchedBase] = (baseCounts[matchedBase] || 0) + qty;
+                }
+                if (item.toppings && Array.isArray(item.toppings)) {
+                    item.toppings.forEach(top => {
+                        const matchedTop = toppingList.find(t => t.toLowerCase() === top.toLowerCase()) || top;
+                        toppingCounts[matchedTop] = (toppingCounts[matchedTop] || 0) + qty;
+                    });
                 }
             });
         }
     });
 
-    document.getElementById('stat-omzet').textContent = totalOmzet.toLocaleString('id-ID');
-    
-    renderBarChart('chart-varian-list', variantCount);
-    renderBarChart('chart-topping-list', toppingCount);
-};
+    const maxBaseCount = Math.max(...Object.values(baseCounts), 1);
+    const maxToppingCount = Math.max(...Object.values(toppingCounts), 1);
 
-// selesaikan pesanan
-window.resolveQuest = (id) => {
-    let logs = JSON.parse(localStorage.getItem('kacau_orders')) || [];
-    const targetOrder = logs.find(item => item.id === id);
-    
-    if (targetOrder) {
-        let history = JSON.parse(localStorage.getItem('kacau_history')) || [];
-        history.push(targetOrder);
-        localStorage.setItem('kacau_history', JSON.stringify(history));
-    }
-
-    logs = logs.filter(item => item.id !== id);
-    localStorage.setItem('kacau_orders', JSON.stringify(logs));
-    
-    renderBoard();
-    renderStats();
-};
-
-// reset data
-btnClear.addEventListener('click', () => {
-    showCustomConfirm('Yakin reset DB? Data antrean aktif dan riwayat omzet akan di-wipe.', () => {
-        localStorage.removeItem('kacau_orders');
-        localStorage.removeItem('kacau_history');
-        renderBoard();
-        renderStats();
+    // 1. Sorting Varian Rasa: Terbanyak di atas -> Jika sama, A-Z
+    const sortedBases = Object.keys(baseCounts).sort((a, b) => {
+        const countDiff = baseCounts[b] - baseCounts[a]; // Terbanyak dulu
+        if (countDiff !== 0) return countDiff;
+        
+        const nameA = a.replace('Pop Ice ', '').toLowerCase();
+        const nameB = b.replace('Pop Ice ', '').toLowerCase();
+        return nameA.localeCompare(nameB); // Alfabetis A-Z jika frekuensi sama
     });
-});
 
-window.addEventListener('click', (e) => {
-    if (e.target === confirmModal) confirmModal.classList.remove('active');
-});
+    // Render Progress Bar Varian
+    const baseContainer = document.getElementById('base-rekap-list');
+    if (baseContainer) {
+        baseContainer.innerHTML = '';
+        sortedBases.forEach(name => {
+            const count = baseCounts[name];
+            const displayName = name.replace('Pop Ice ', '');
+            const barWidth = (count / maxBaseCount) * 100;
 
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple);';
+            row.innerHTML = `
+                <div style="width: 100px; flex-shrink: 0;">${displayName}</div>
+                <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
+                    <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
+                </div>
+                <div style="width: 25px; text-align: right; font-weight: bold; font-size: 0.6rem;">${count}</div>
+            `;
+            baseContainer.appendChild(row);
+        });
+    }
+
+    // 2. Sorting Topping: Terbanyak di atas -> Jika sama, A-Z
+    const sortedToppings = Object.keys(toppingCounts).sort((a, b) => {
+        const countDiff = toppingCounts[b] - toppingCounts[a]; // Terbanyak dulu
+        if (countDiff !== 0) return countDiff;
+        
+        return a.toLowerCase().localeCompare(b.toLowerCase()); // Alfabetis A-Z jika frekuensi sama
+    });
+
+    // Render Progress Bar Topping
+    const toppingContainer = document.getElementById('topping-rekap-list');
+    if (toppingContainer) {
+        toppingContainer.innerHTML = '';
+        sortedToppings.forEach(name => {
+            const count = toppingCounts[name];
+            const barWidth = (count / maxToppingCount) * 100;
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple);';
+            row.innerHTML = `
+                <div style="width: 100px; flex-shrink: 0;">${name}</div>
+                <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
+                    <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
+                </div>
+                <div style="width: 25px; text-align: right; font-weight: bold; font-size: 0.6rem;">${count}</div>
+            `;
+            toppingContainer.appendChild(row);
+        });
+    }
+};
+
+/**
+ * Menyelesaikan Pesanan (Tombol DONE)
+ */
+window.completeOrder = (index) => {
+    let orders = getOrders();
+    if (index < 0 || index >= orders.length) return;
+    
+    let completedLog = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
+    completedLog.push(orders[index]);
+    localStorage.setItem('kacau_completed_orders', JSON.stringify(completedLog));
+
+    orders.splice(index, 1);
+    saveOrders(orders);
+    
+    renderSellerDashboard();
+};
+
+/**
+ * Modal Confirm Kustom (FORMAT DATA / Reset DB)
+ */
+if (btnFormatData) {
+    btnFormatData.addEventListener('click', () => {
+        if (confirmModal) {
+            confirmModal.classList.remove('hidden');
+            confirmModal.classList.add('active');
+        }
+    });
+}
+
+if (cancelConfirmBtn) {
+    cancelConfirmBtn.addEventListener('click', () => {
+        if (confirmModal) {
+            confirmModal.classList.add('hidden');
+            confirmModal.classList.remove('active');
+        }
+    });
+}
+
+if (actionConfirmBtn) {
+    actionConfirmBtn.addEventListener('click', () => {
+        localStorage.removeItem('kacau_orders');
+        localStorage.removeItem('kacau_completed_orders');
+        localStorage.removeItem('kacau_order_counter');
+        
+        if (confirmModal) {
+            confirmModal.classList.add('hidden');
+            confirmModal.classList.remove('active');
+        }
+        
+        renderSellerDashboard();
+    });
+}
+
+// Auto-update real-time saat ada transaksi baru dari tab pembeli
 window.addEventListener('storage', (e) => {
-    if (e.key === 'kacau_orders' || e.key === 'kacau_history') {
-        renderBoard();
-        renderStats();
+    if (e.key === 'kacau_orders') {
+        renderSellerDashboard();
     }
 });
 
-renderBoard();
-renderStats();
+// Inisialisasi awal saat seller.html dimuat
+renderSellerDashboard();

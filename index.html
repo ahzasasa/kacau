@@ -3,23 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KACAU - Statistika Cincau</title>
+    <title>KACAU - Menu Katalog</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- navigation -->
     <nav class="navbar">
         <div class="logo">KACAU</div>
         <div class="nav-links">
             <a href="home.html">HOME</a>
-            <a href="index.html" class="active">MENU</a>
             <a href="about.html">TEAM</a>
+            <a href="index.html" class="active">MENU</a>
+            <a href="cart.html">CART</a>
         </div>
     </nav>
 
+    <!-- header banner -->
     <header class="hero">
         <div class="hero-text">
-            <h1>COBA VARIAN<br><span class="highlight">BARU KAMI!</span></h1>
+            <h1>YUK,COBA VARIAN<br><span class="highlight">KACAU!</span></h1>
             <p>Es cincau segar dengan sensasi pop ice kini tersedia.<br>Pesan milikmu sekarang!</p>
         </div>
         <div class="hero-image">
@@ -29,7 +32,8 @@
         </div>
     </header>
 
-    <main class="container">
+    <!-- main container produk -->
+    <main class="container" style="padding-bottom: 120px;">
         <div class="section-header">
             <h2>PRODUCTS</h2>
             <div class="toolbar">
@@ -37,136 +41,158 @@
             </div>
         </div>
 
+        <!-- section varian rasa utama -->
         <section class="product-grid" id="base-menu">
             <div class="card" data-type="base" data-price="5000" data-name="Original">
-                <div class="card-img-bg">CINCAU</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Original</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">CINCAU</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Original</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
+
             <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Coklat">
-                <div class="card-img-bg alt-bg">COKLAT</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Pop Ice Coklat</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">COKLAT</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Pop Ice Coklat</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
+
             <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Strawberry">
-                <div class="card-img-bg">STRAWBERRY</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Pop Ice Strawberry</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">STRAWBERRY</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Pop Ice Strawberry</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
+
             <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Melon">
-                <div class="card-img-bg alt-bg">MELON</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Pop Ice Melon</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">MELON</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Pop Ice Melon</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
+
             <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Vanilla">
-                <div class="card-img-bg">VANILLA</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Pop Ice Vanilla</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">VANILLA</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Pop Ice Vanilla</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
+
             <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Taro">
-                <div class="card-img-bg alt-bg">TARO</div>
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 5.000</span></div>
-                    <h3 class="product-title">Pop Ice Taro</h3>
-                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                <div class="card-header">TARO</div>
+                <div class="card-body">
+                    <div class="price">RP 5.000</div>
+                    <div class="title">Pop Ice Taro</div>
+                    <button class="btn select-btn">PILIH</button>
                 </div>
             </div>
         </section>
 
-        <div class="section-header" style="margin-top: 50px;">
+        <!-- section topping -->
+        <div class="section-header" style="margin-top: 30px;">
             <h2>TOPPINGS</h2>
         </div>
+
         <section class="product-grid" id="topping-menu">
-            <div class="card card-small" data-type="topping" data-price="1000" data-name="Oreo">
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 1.000</span></div>
-                    <h3 class="product-title">Oreo</h3>
-                    <button class="btn select-btn" style="width:100%; margin-top:10px;">PILIH</button>
+            <div class="card" data-type="topping" data-price="1000" data-name="Oreo">
+                <div class="card-body">
+                    <div class="price">RP 1.000</div>
+                    <div class="title">Oreo</div>
+                    <button class="btn select-btn">TAMBAH</button>
                 </div>
             </div>
-            <div class="card card-small" data-type="topping" data-price="1000" data-name="Crumble">
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 1.000</span></div>
-                    <h3 class="product-title">Crumble</h3>
-                    <button class="btn select-btn" style="width:100%; margin-top:10px;">PILIH</button>
+
+            <div class="card" data-type="topping" data-price="1000" data-name="Crumble">
+                <div class="card-body">
+                    <div class="price">RP 1.000</div>
+                    <div class="title">Crumble</div>
+                    <button class="btn select-btn">TAMBAH</button>
                 </div>
             </div>
-            <div class="card card-small" data-type="topping" data-price="1000" data-name="Meses">
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 1.000</span></div>
-                    <h3 class="product-title">Meses</h3>
-                    <button class="btn select-btn" style="width:100%; margin-top:10px;">PILIH</button>
+
+            <div class="card" data-type="topping" data-price="1000" data-name="Meses">
+                <div class="card-body">
+                    <div class="price">RP 1.000</div>
+                    <div class="title">Meses</div>
+                    <button class="btn select-btn">TAMBAH</button>
                 </div>
             </div>
-            <div class="card card-small" data-type="topping" data-price="1000" data-name="Keju">
-                <div class="card-content">
-                    <div class="price-row"><span class="price">RP 1.000</span></div>
-                    <h3 class="product-title">Keju</h3>
-                    <button class="btn select-btn" style="width:100%; margin-top:10px;">PILIH</button>
+
+            <div class="card" data-type="topping" data-price="1000" data-name="Keju">
+                <div class="card-body">
+                    <div class="price">RP 1.000</div>
+                    <div class="title">Keju</div>
+                    <button class="btn select-btn">TAMBAH</button>
                 </div>
             </div>
         </section>
     </main>
 
-    <div class="floating-summary">
-        <div>
-            <span style="font-size: 0.6rem;">TOTAL PEMBAYARAN</span>
-            <div style="font-weight: 700; font-size: 1rem; margin-top: 5px;">RP <span id="total-price">0</span></div>
+    <!-- bottom bar -->
+    <footer class="bottom-bar">
+        <div class="total-container">
+            <span class="total-label">TOTAL PEMBAYARAN</span>
+            <div class="total-price-text">RP <span id="total-price">0</span></div>
         </div>
-        <button id="checkout-btn" class="btn btn-invert" style="padding: 15px 30px;">CHECKOUT</button>
-    </div>
 
-    <!-- QRIS dan input nama -->
+        <!-- tombol kuantitas -->
+        <div class="qty-control">
+            <button id="qty-minus" class="qty-btn">-</button>
+            <span id="qty-val" class="qty-val">0</span>
+            <button id="qty-plus" class="qty-btn">+</button>
+        </div>
+
+        <button id="add-to-cart-btn" class="btn">KERANJANG</button>
+        <button id="checkout-btn" class="btn btn-invert">CHECKOUT</button>
+    </footer>
+
+    <!-- QRIS pembayaran direct -->
     <div id="qris-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <span class="close-btn" id="close-modal">X</span>
-            <h3 style="margin-bottom: 20px;">SCAN QRIS</h3>
+        <div class="modal-card">
+            <button id="close-qris-btn" class="close-btn">x</button>
+            <h3 class="modal-title">SCAN QRIS</h3>
             
-            <div class="qris-image-container" style="background: var(--c-yellow); padding: 10px; border: 4px solid var(--c-purple); margin-bottom: 15px;">
-                <img src="qris.jpg" alt="QRIS Code" class="qris-img" style="width: 100%; max-width: 200px;">
+            <div class="qris-box">
+                <img src="qris.jpg" alt="QRIS Code" class="qris-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                <span class="qris-alt-text" style="display:none;">QRIS Code</span>
             </div>
-            
-            <!-- kolom input nama pembeli -->
-            <input type="text" id="buyer-name" class="pixel-input" placeholder="NAMA KAMU..." autocomplete="off">
-            
-            <div class="modal-total" style="margin: 20px 0;">
-                TOTAL: <span style="color: var(--c-purple);">RP <span id="modal-total-price">0</span></span>
+
+            <input type="text" id="buyer-name-input" placeholder="NAMA KAMU..." class="pixel-input">
+
+            <div class="modal-total">
+                TOTAL: <span class="highlight-price">RP <span id="modal-pay-total">0</span></span>
             </div>
-            <button id="confirm-payment-btn" class="btn btn-invert" style="width: 100%; padding: 15px;">SELESAI BAYAR</button>
+
+            <button id="confirm-pay-btn" class="btn btn-invert btn-full">SELESAI BAYAR</button>
         </div>
     </div>
 
-    <!-- custom alert -->
+    <!-- alert modal -->
     <div id="alert-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 300px; padding: 20px;">
-            <h3 style="margin-bottom: 15px; color: var(--c-purple);">INFO</h3>
-            <p id="alert-message" style="font-size: 0.7rem; line-height: 1.6; margin-bottom: 20px; color: var(--c-purple);"></p>
-            <button id="close-alert-btn" class="btn btn-invert" style="width: 100%; padding: 10px;">OK</button>
+        <div class="modal-content" style="max-width: 300px; padding: 20px; text-align: center;">
+            <p id="alert-message" style="font-size: 0.65rem; line-height: 1.6; margin-bottom: 20px; color: var(--c-purple);"></p>
+            <button id="close-alert-btn" class="btn btn-invert" style="padding: 10px 20px;">OK</button>
         </div>
     </div>
 
+    <!-- footer -->
     <footer class="footer">
         <div class="footer-col">
             <h2 class="footer-logo">KACAU</h2>
         </div>
         <div class="footer-col">
             <h4>CONTACT US</h4>
-            <p>Nomornya Farrel aja</p>
+            <p>09123456789</p>
         </div>
         <div class="footer-col">
             <h4>SOCIAL MEDIA</h4>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KACAU - Struk Pesanan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+
+    <!-- Container Struk Presisi di Tengah Layar -->
+    <main style="display: flex; justify-content: center; align-items: center; width: 100%;">
+        <div class="receipt-card" style="width: 100%; max-width: 320px;">
+            <div class="receipt-header">
+                <h3>KACAU</h3>
+                <p>STATISTIKA CINCAU</p>
+                <div class="receipt-divider">--------------------</div>
+            </div>
+            <div class="receipt-body">
+                <p>NO: <span id="rec-id">-</span></p>
+                <p>WAKTU: <span id="rec-date">-</span></p>
+                <p>PEMBELI: <span id="rec-name">-</span></p>
+                <div class="receipt-divider">--------------------</div>
+                <div id="rec-items-list" class="receipt-items"></div>
+                <div class="receipt-divider">--------------------</div>
+                <div class="receipt-total">
+                    TOTAL: RP <span id="rec-total">0</span>
+                </div>
+                <div class="receipt-stamp">[ LUNAS / LET'S GO ]</div>
+            </div>
+            <a href="index.html" class="btn btn-invert btn-full" style="display: block; text-decoration: none; margin-top: 15px; text-align: center;">KEMBALI KE MENU</a>
+        </div>
+    </main>
+
+    <script src="receipt.js"></script>
+</body>
+</html>

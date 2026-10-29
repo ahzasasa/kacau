@@ -7,59 +7,61 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <!-- tab navigation -->
-        <div class="seller-nav">
-            <button id="tab-orders-btn" class="tab-btn active">PESANAN MASUK</button>
-            <button id="tab-stats-btn" class="tab-btn">REKAP PENJUALAN</button>
+<body style="padding-top: 20px;">
+
+    <main class="container" style="padding-bottom: 120px;">
+        <div class="seller-nav" style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button id="tab-orders-btn" class="tab-btn active" style="flex: 1; padding: 12px; font-size: 0.6rem; cursor: pointer;">PESANAN MASUK</button>
+            <button id="tab-rekap-btn" class="tab-btn" style="flex: 1; padding: 12px; font-size: 0.6rem; cursor: pointer;">REKAP PENJUALAN</button>
         </div>
 
-        <!-- tab 1: pesanan masuk -->
+        <!-- pesanan masuk -->
         <div id="tab-orders" class="tab-content active">
-            <div class="seller-header">
-                <div>
-                    <h2>QUEST LOG</h2>
-                    <p style="font-size: 0.6rem; margin-top: 5px;">PESANAN AKTIF</p>
-                </div>
-                <button id="clear-all-btn" class="btn btn-invert" style="padding: 10px 15px; font-size: 0.55rem;">FORMAT DATA</button>
+            <div class="section-header" style="flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 20px;">
+                <h2 style="font-size: 1.2rem;">QUEST LOG</h2>
+                <p style="font-size: 0.6rem; opacity: 0.8;">PESANAN AKTIF</p>
+                <button id="btn-format-data" class="btn btn-invert" style="padding: 10px 15px; font-size: 0.55rem; margin-top: 5px;">FORMAT DATA</button>
             </div>
-            <main id="order-container"></main>
+
+            <div id="quest-log-container"></div>
         </div>
 
-        <!-- tab 2: diagram batang dan omzet -->
-        <div id="tab-stats" class="tab-content">
-            <div class="stats-panel">
-                <h3 class="stats-title">REKAP PENJUALAN</h3>
-                <div id="stat-date" style="font-size: 0.65rem; color: var(--c-purple); margin-bottom: 15px; font-weight: bold; text-align: center;">
-                    TANGGAL: -
+        <!-- rekap penjualan -->
+        <div id="tab-rekap" class="tab-content" style="display: none;">
+            <div class="stats-panel" style="background: var(--c-green-light); border: 4px solid var(--c-purple); padding: 20px; box-shadow: 4px 4px 0 rgba(69, 12, 63, 0.2);">
+                <h3 style="font-size: 0.85rem; color: var(--c-purple); margin-bottom: 15px; border-bottom: 4px solid var(--c-purple); padding-bottom: 10px;">REKAP PENJUALAN</h3>
+                
+                <!-- box omzet -->
+                <div class="omzet-box" style="background: var(--c-purple); color: var(--c-yellow); padding: 15px; text-align: center; font-size: 0.75rem; margin-bottom: 15px; font-weight: bold;">
+                    OMZET: RP <span id="total-omzet">0</span>
                 </div>
-        
-                <div class="omzet-box">
-                    OMZET: RP <span id="stat-omzet">0</span>
+
+                <!-- box total pesanan selesai -->
+                <div style="background: var(--c-yellow); border: 3px solid var(--c-purple); padding: 10px; text-align: center; font-size: 0.55rem; color: var(--c-purple); margin-bottom: 25px; box-shadow: 2px 2px 0 rgba(69, 12, 63, 0.15);">
+                    TOTAL PESANAN SELESAI: <strong id="total-orders-count">0</strong>
                 </div>
-        
-                <div class="chart-section">
-                    <h4>VARIAN TERJUAL</h4>
-                    <div id="chart-varian-list"></div>
-                </div>
-        
-                <div class="chart-section">
-                    <h4>TOPPING TERJUAL</h4>
-                    <div id="chart-topping-list"></div>
-                </div>
+
+                <!-- section varian terjual -->
+                <h4 style="font-size: 0.65rem; color: var(--c-purple); margin-bottom: 15px;">VARIAN TERJUAL</h4>
+                <div id="base-rekap-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;"></div>
+
+                <!-- section topping terjual -->
+                <h4 style="font-size: 0.65rem; color: var(--c-purple); margin-bottom: 15px;">TOPPING TERJUAL</h4>
+                <div id="topping-rekap-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
             </div>
         </div>
-    </div>
+    </main>
 
-    <!-- custom confirm -->
+    <!-- confirm -->
     <div id="confirm-modal" class="modal-overlay hidden">
-        <div class="modal-content" style="max-width: 320px; padding: 20px;">
-            <h3 style="margin-bottom: 15px; color: var(--c-purple);">WARNING</h3>
-            <p id="confirm-message" style="font-size: 0.7rem; line-height: 1.6; margin-bottom: 20px; color: var(--c-purple);"></p>
+        <div class="modal-card" style="max-width: 320px; padding: 22px 18px; text-align: center;">
+            <h3 style="font-size: 0.75rem; color: var(--c-purple); margin-bottom: 15px; font-weight: bold;">WARNING</h3>
+            <p style="font-size: 0.55rem; line-height: 1.6; margin-bottom: 20px; color: var(--c-purple);">
+                Yakin reset? Data antrean aktif dan riwayat omzet akan dihapus.
+            </p>
             <div style="display: flex; gap: 10px;">
-                <button id="btn-cancel-confirm" class="btn" style="flex: 1; padding: 10px;">BATAL</button>
-                <button id="btn-yes-confirm" class="btn btn-invert" style="flex: 1; padding: 10px;">YAKIN</button>
+                <button id="cancel-confirm-btn" class="btn" style="flex: 1; padding: 10px; font-size: 0.55rem;">BATAL</button>
+                <button id="action-confirm-btn" class="btn btn-invert" style="flex: 1; padding: 10px; font-size: 0.55rem;">YAKIN</button>
             </div>
         </div>
     </div>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KACAU - Keranjang</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- navigation -->
+    <nav class="navbar">
+        <div class="logo">KACAU</div>
+        <div class="nav-links">
+            <a href="home.html">HOME</a>
+            <a href="about.html">TEAM</a>
+            <a href="index.html">MENU</a>
+            <a href="cart.html" class="active">CART</a>
+        </div>
+    </nav>
+
+    <main class="container" style="padding-bottom: 120px;">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h2>KERANJANG PESANAN</h2>
+            <a href="index.html" class="btn" style="font-size: 0.55rem; padding: 10px 12px; text-decoration: none;">← KEMBALI KE MENU</a>
+        </div>
+
+        <!-- bar pilih checkout -->
+        <div id="select-all-bar" class="cart-select-all-bar">
+            <label class="custom-checkbox-label">
+                <input type="checkbox" id="select-all-checkbox">
+                <span class="checkbox-box"></span>
+                <span>PILIH SEMUA</span>
+            </label>
+            <button id="delete-selected-btn" class="btn-text-danger">[HAPUS TERPILIH]</button>
+        </div>
+
+        <!-- daftar item keranjang -->
+        <div id="cart-items-container"></div>
+    </main>
+
+    <!-- bottom checkout bar -->
+    <footer class="bottom-bar">
+        <div class="total-container">
+            <span class="total-label">TOTAL (TERPILIH)</span>
+            <div class="total-price-text">RP <span id="cart-grand-total">0</span></div>
+        </div>
+        <button id="cart-checkout-btn" class="btn btn-invert" style="padding: 12px 20px; font-size: 0.6rem;">CHECKOUT (<span id="checked-count">0</span>)</button>
+    </footer>
+
+    <!-- QRIS pembayaran -->
+    <div id="cart-qris-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button id="close-qris-btn" class="close-btn">x</button>
+            <h3 class="modal-title">SCAN QRIS</h3>
+            
+            <div class="qris-box">
+                <img src="qris.jpg" alt="QRIS Code" class="qris-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                <span class="qris-alt-text" style="display:none;">QRIS Code</span>
+            </div>
+
+            <input type="text" id="buyer-name-input" placeholder="NAMA KAMU..." class="pixel-input">
+
+            <div class="modal-total">
+                TOTAL: <span class="highlight-price">RP <span id="modal-pay-total">0</span></span>
+            </div>
+
+            <button id="confirm-pay-btn" class="btn btn-invert btn-full">SELESAI BAYAR</button>
+        </div>
+    </div>
+
+    <!-- alert modal -->
+    <div id="alert-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 300px; padding: 20px; text-align: center;">
+            <p id="alert-message" style="font-size: 0.65rem; line-height: 1.6; margin-bottom: 20px; color: var(--c-purple);"></p>
+            <button id="close-alert-btn" class="btn btn-invert" style="padding: 10px 20px;">OK</button>
+        </div>
+    </div>
+
+    <script src="cart.js"></script>
+</body>
+</html>
