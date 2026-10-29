@@ -131,7 +131,7 @@ body {
 }
 
 .pixel-input::placeholder {
-    color: var(--c-purple);
+    color: var(--c-green-dark);
 }
 
 .cart-icon {
