@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KACAU - Dashboard Penjual</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .seller-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--c-green-light); border: 4px solid var(--c-purple);
+            padding: 20px; margin-bottom: 30px;
+        }
+        .quest-card {
+            background: var(--c-yellow); border: 4px solid var(--c-purple);
+            padding: 20px; margin-bottom: 20px; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 6px 6px 0 rgba(69, 12, 63, 0.2);
+        }
+        .quest-data { font-size: 0.7rem; line-height: 2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="seller-header">
+            <div>
+                <h2>QUEST LOG</h2>
+                <p style="font-size: 0.6rem; margin-top: 5px;">PESANAN AKTIF</p>
+            </div>
+            <button id="clear-all-btn" class="btn btn-invert" style="padding: 10px 20px;">FORMAT DATA</button>
+        </div>
+        <main id="order-container"></main>
+    </div>
+    <script src="seller.js"></script>
+</body>
+</html>

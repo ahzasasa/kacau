@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KACAU - Statistika Cincau</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">KACAU</div>
+        <div class="nav-links">
+            <a href="#">HOME</a>
+            <a href="#" class="active">MENU</a>
+            <a href="#">ABOUT</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-text">
+            <h1>COBA VARIAN<br><span class="highlight">BARU KAMI!</span></h1>
+            <p>Es cincau segar dengan sensasi pop ice kini tersedia.<br>Pesan milikmu sekarang!</p>
+        </div>
+        <div class="hero-image">
+            <div class="circle-bg">?</div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="section-header">
+            <h2>PRODUCTS</h2>
+            <div class="toolbar">
+                <button class="cart-icon">CART [<span id="cart-count">0</span>]</button>
+            </div>
+        </div>
+
+        <section class="product-grid" id="base-menu">
+            <div class="card" data-type="base" data-price="5000" data-name="Original">
+                <div class="card-img-bg">CINCAU</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Original</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+            <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Coklat">
+                <div class="card-img-bg alt-bg">COKLAT</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Pop Ice Coklat</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+            <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Strawberry">
+                <div class="card-img-bg">STRAWBERRY</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Pop Ice Strawberry</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+            <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Melon">
+                <div class="card-img-bg alt-bg">MELON</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Pop Ice Melon</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+            <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Vanilla">
+                <div class="card-img-bg">VANILLA</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Pop Ice Vanilla</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+            <div class="card" data-type="base" data-price="5000" data-name="Pop Ice Taro">
+                <div class="card-img-bg alt-bg">TARO</div>
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 5.000</span></div>
+                    <h3 class="product-title">Pop Ice Taro</h3>
+                    <div class="btn-row"><button class="btn select-btn">PILIH</button></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-header" style="margin-top: 50px;">
+            <h2>TOPPINGS</h2>
+        </div>
+        <section class="product-grid" id="topping-menu">
+            <div class="card card-small" data-type="topping" data-price="1000" data-name="Oreo">
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 1.000</span></div>
+                    <h3 class="product-title">Oreo</h3>
+                    <button class="btn select-btn" style="width:100%; margin-top:10px;">TAMBAH</button>
+                </div>
+            </div>
+            <div class="card card-small" data-type="topping" data-price="1000" data-name="Crumble">
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 1.000</span></div>
+                    <h3 class="product-title">Crumble</h3>
+                    <button class="btn select-btn" style="width:100%; margin-top:10px;">TAMBAH</button>
+                </div>
+            </div>
+            <div class="card card-small" data-type="topping" data-price="1000" data-name="Meses">
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 1.000</span></div>
+                    <h3 class="product-title">Meses</h3>
+                    <button class="btn select-btn" style="width:100%; margin-top:10px;">TAMBAH</button>
+                </div>
+            </div>
+            <div class="card card-small" data-type="topping" data-price="1000" data-name="Keju">
+                <div class="card-content">
+                    <div class="price-row"><span class="price">RP 1.000</span></div>
+                    <h3 class="product-title">Keju</h3>
+                    <button class="btn select-btn" style="width:100%; margin-top:10px;">TAMBAH</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="floating-summary">
+        <div>
+            <span style="font-size: 0.6rem;">TOTAL PEMBAYARAN</span>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 5px;">RP <span id="total-price">0</span></div>
+        </div>
+        <button id="checkout-btn" class="btn btn-invert" style="padding: 15px 30px;">CHECKOUT</button>
+    </div>
+
+    <!-- Modal QRIS dengan Input Nama -->
+    <div id="qris-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span class="close-btn" id="close-modal">X</span>
+            <h3 style="margin-bottom: 20px;">SCAN QRIS</h3>
+            
+            <div class="qris-image-container" style="background: var(--c-yellow); padding: 10px; border: 4px solid var(--c-purple); margin-bottom: 15px;">
+                <img src="qris-placeholder.png" alt="QRIS Code" class="qris-img" style="width: 100%; max-width: 200px;">
+            </div>
+            
+            <!-- Kolom Input Nama Pembeli -->
+            <input type="text" id="buyer-name" class="pixel-input" placeholder="NAMA KAMU..." autocomplete="off">
+            
+            <div class="modal-total" style="margin: 20px 0;">
+                TOTAL: <span style="color: var(--c-green-dark);">RP <span id="modal-total-price">0</span></span>
+            </div>
+            <button id="confirm-payment-btn" class="btn btn-invert" style="width: 100%; padding: 15px;">SELESAI BAYAR</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-col">
+            <h2 class="footer-logo">KACAU</h2>
+        </div>
+        <div class="footer-col">
+            <h4>CONTACT US</h4>
+            <p>09123456789</p>
+        </div>
+        <div class="footer-col">
+            <h4>SOCIAL MEDIA</h4>
+            <p>@STATISTIKA.CINCAU</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
