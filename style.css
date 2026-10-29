@@ -266,6 +266,11 @@ body {
 
 .close-btn:hover { background: var(--c-green-dark); }
 
+/* Custom Alert */
+#alert-modal {
+    z-index: 1000;
+}
+
 /* 
  * Footer
  */
