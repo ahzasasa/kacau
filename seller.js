@@ -124,6 +124,14 @@ const renderBarChart = (targetElId, dataMap) => {
 // render omzet dan data statistik
 const renderStats = () => {
     const history = JSON.parse(localStorage.getItem('kacau_history')) || [];
+
+    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    const todayStr = new Date().toLocaleDateString('id-ID', dateOptions);
+
+    const statDateEl = document.getElementById('stat-date');
+    if (statDateEl) {
+        statDateEl.textContent = `TANGGAL: ${todayStr}`;
+    }
     
     let totalOmzet = 0;
 
@@ -133,7 +141,11 @@ const renderStats = () => {
     let toppingCount = {};
     ALL_TOPPINGS.forEach(t => toppingCount[t] = 0);
 
-    history.forEach(order => {
+    const todayHistory = history.filter(order => {
+        return order.date ? order.date === todayStr : true;
+    });
+
+    todayHistory.forEach(order => {
         totalOmzet += order.total;
         
         if (order.base && variantCount.hasOwnProperty(order.base)) {

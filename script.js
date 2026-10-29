@@ -115,34 +115,32 @@ window.addEventListener('click', (e) => {
 document.getElementById('confirm-payment-btn').addEventListener('click', () => {
     const buyerName = nameInput.value.trim();
 
-    // Prevent submission jika form nama kosong
     if (!buyerName) {
         showCustomAlert('Maaf, isi nama kamu dulu ya biar pesanannya nggak ketukar.');
         return;
     }
 
     const arrToppings = Array.from(state.toppings.keys());
+    const now = new Date();
+    const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
     
-    // payload pesanan
     const payload = {
         id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
-        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        date: now.toLocaleDateString('id-ID', dateOptions),
+        time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         customer: buyerName, 
         base: state.baseMenu.name,
         toppings: arrToppings.length > 0 ? arrToppings.join(', ') : '-',
         total: state.total
     };
 
-    // load queue dari local storage, mutasi, lalu simpan ulang
     let orderLog = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     orderLog.push(payload);
     localStorage.setItem('kacau_orders', JSON.stringify(orderLog));
 
-    // tutup popup QRIS dan trigger notifikasi sukses
     qrisModal.classList.remove('active');
     showCustomAlert('Terima kasih! Pesanan kamu sudah masuk ke antrean.');
     
-    // clean-up
     nameInput.value = '';
     resetState();
 });
