@@ -6,33 +6,30 @@ let state = {
     itemCount: 0
 };
 
-// Pemetaan selector DOM 
+// selector DOM 
 const domTotal = document.getElementById('total-price');
 const domCartCount = document.getElementById('cart-count');
 const modalTotalPrice = document.getElementById('modal-total-price');
 const qrisModal = document.getElementById('qris-modal');
 const nameInput = document.getElementById('buyer-name');
 
-// Selector DOM untuk Custom Alert
+// custom alert
 const alertModal = document.getElementById('alert-modal');
 const alertMessage = document.getElementById('alert-message');
 const btnCloseAlert = document.getElementById('close-alert-btn');
 
 /**
- * Pemformatan string numerik ke bentuk representasi currency.
+ * string numerik ke bentuk representasi currency
  */
 const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-/**
- * Fungsi utilitas untuk memanggil popup alert custom (menggantikan window.alert).
- */
 const showCustomAlert = (pesan) => {
     alertMessage.textContent = pesan;
     alertModal.classList.add('active');
 };
 
 /**
- * Kalkulasi state harga dan sinkronisasi ke node DOM.
+ * kalkulasi state harga dan sinkronisasi ke node DOM
  */
 const updateSummary = () => {
     let toppingSum = 0;
@@ -46,7 +43,7 @@ const updateSummary = () => {
 };
 
 /**
- * Flush/reset state memori pasca transaksi sukses.
+ * reset state memori pasca transaksi sukses
  */
 const resetState = () => {
     state = { baseMenu: { name: null, price: 0, node: null }, toppings: new Map(), total: 0, itemCount: 0 };
@@ -57,7 +54,7 @@ const resetState = () => {
     updateSummary();
 };
 
-// Listener iteratif untuk operasi klik kartu katalog
+// listener iteratif untuk operasi klik kartu katalog
 document.querySelectorAll('.card').forEach(card => {
     const btn = card.querySelector('.select-btn');
     const type = card.dataset.type;
@@ -66,7 +63,6 @@ document.querySelectorAll('.card').forEach(card => {
 
     btn.addEventListener('click', () => {
         if (type === 'base') {
-            // Mekanisme mutually exclusive
             if (state.baseMenu.node && state.baseMenu.node !== btn) {
                 state.baseMenu.node.classList.remove('active-state');
                 state.baseMenu.node.textContent = 'PILIH';
@@ -82,7 +78,6 @@ document.querySelectorAll('.card').forEach(card => {
                 state.baseMenu = { name, price, node: btn };
             }
         } else if (type === 'topping') {
-            // Mekanisme toggle multi-select via Map
             if (state.toppings.has(name)) {
                 state.toppings.delete(name);
                 btn.classList.remove('active-state');
@@ -97,7 +92,7 @@ document.querySelectorAll('.card').forEach(card => {
     });
 });
 
-// Listener validasi pra-checkout & invoke modal QRIS
+// listener validasi pra-checkout dan invoke modal QRIS
 document.getElementById('checkout-btn').addEventListener('click', () => {
     if (state.total === 0 || !state.baseMenu.name) {
         showCustomAlert('Gagal checkout. Jangan lupa pilih varian rasa utamanya dulu ya.');
@@ -107,7 +102,7 @@ document.getElementById('checkout-btn').addEventListener('click', () => {
     qrisModal.classList.add('active');
 });
 
-// Handler penutupan modal QRIS dan Custom Alert
+// handler penutupan modal QRIS dan custom alert
 document.getElementById('close-modal').addEventListener('click', () => qrisModal.classList.remove('active'));
 btnCloseAlert.addEventListener('click', () => alertModal.classList.remove('active'));
 
@@ -116,7 +111,7 @@ window.addEventListener('click', (e) => {
     if (e.target === alertModal) alertModal.classList.remove('active'); 
 });
 
-// Eksekusi checkout, payload generator & push array ke Web Storage
+// eksekusi checkout, payload generator dan push array ke web storage
 document.getElementById('confirm-payment-btn').addEventListener('click', () => {
     const buyerName = nameInput.value.trim();
 
@@ -128,7 +123,7 @@ document.getElementById('confirm-payment-btn').addEventListener('click', () => {
 
     const arrToppings = Array.from(state.toppings.keys());
     
-    // Schema payload pesanan
+    // payload pesanan
     const payload = {
         id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
         time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
@@ -138,16 +133,16 @@ document.getElementById('confirm-payment-btn').addEventListener('click', () => {
         total: state.total
     };
 
-    // Load queue dari local storage, mutasi, lalu simpan ulang
+    // load queue dari local storage, mutasi, lalu simpan ulang
     let orderLog = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     orderLog.push(payload);
     localStorage.setItem('kacau_orders', JSON.stringify(orderLog));
 
-    // Tutup popup QRIS dan trigger notifikasi sukses
+    // tutup popup QRIS dan trigger notifikasi sukses
     qrisModal.classList.remove('active');
     showCustomAlert('Terima kasih! Pesanan kamu sudah masuk ke antrean.');
     
-    // Clean-up
+    // clean-up
     nameInput.value = '';
     resetState();
 });
