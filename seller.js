@@ -60,7 +60,6 @@ const initSellerDatabaseListeners = () => {
     const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
 
     if (typeof db !== 'undefined') {
-        // 1. Listen Antrean Pesanan Aktif dari Cloud Firebase
         db.ref('kacau_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             activeOrdersList = [];
@@ -74,7 +73,6 @@ const initSellerDatabaseListeners = () => {
                 });
             }
 
-            // Sync LocalStorage orders jika ada transaksi offline yang belum terdorong
             localOrders.forEach(localOrd => {
                 const exists = activeOrdersList.some(fOrd => fOrd.id === localOrd.id);
                 if (!exists) {
@@ -82,10 +80,15 @@ const initSellerDatabaseListeners = () => {
                 }
             });
 
+            activeOrdersList.sort((a, b) => {
+                const numA = parseInt((a.id || '').replace('REQ-', '')) || 0;
+                const numB = parseInt((b.id || '').replace('REQ-', '')) || 0;
+                return numA - numB;
+            });
+
             renderSellerDashboard();
         });
 
-        // 2. Listen Riwayat Pesanan Selesai dari Cloud Firebase
         db.ref('kacau_completed_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             completedOrdersList = [];
@@ -99,9 +102,13 @@ const initSellerDatabaseListeners = () => {
             renderRekapStats();
         });
     } else {
-        // Fallback jika Firebase offline / belum terinisialisasi
-        console.warn("Firebase Database 'db' tidak terdeteksi. Menggunakan mode LocalStorage.");
         activeOrdersList = localOrders;
+        activeOrdersList.sort((a, b) => {
+            const numA = parseInt((a.id || '').replace('REQ-', '')) || 0;
+            const numB = parseInt((b.id || '').replace('REQ-', '')) || 0;
+            return numA - numB;
+        });
+
         completedOrdersList = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
         renderSellerDashboard();
         renderRekapStats();
