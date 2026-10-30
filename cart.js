@@ -63,6 +63,9 @@ const updateTotals = () => {
     }
 };
 
+/**
+ * Kuantitas Item di Keranjang
+ */
 window.updateCartItemQty = (index, delta) => {
     let cart = getCartData();
     if (!cart[index]) return;
@@ -116,7 +119,6 @@ const renderCart = () => {
                 <div class="cart-item-price">RP ${formatNumber(item.total)}</div>
             </div>
             
-            <!-- Tombol Kuantitas di Keranjang -->
             <div class="qty-control" style="margin: 0 10px;">
                 <button class="qty-btn" onclick="updateCartItemQty(${index}, -1)">-</button>
                 <span class="qty-val">${item.qty || 1}</span>
@@ -197,6 +199,9 @@ if (closeQrisBtn) {
     });
 }
 
+/**
+ * Konfirmasi Bayar
+ */
 if (confirmPayBtn) {
     confirmPayBtn.addEventListener('click', () => {
         const buyerName = buyerNameInput ? buyerNameInput.value.trim() : '';
@@ -223,10 +228,14 @@ if (confirmPayBtn) {
             total: totalToPay
         };
 
-        let orderLog = JSON.parse(localStorage.getItem('kacau_orders')) || [];
-        orderLog.push(payload);
-        localStorage.setItem('kacau_orders', JSON.stringify(orderLog));
+        // 1. Kirim ke Firebase Realtime Database
+        if (typeof db !== 'undefined') {
+            db.ref('kacau_orders').push(payload);
+        } else {
+            console.error("Firebase Database 'db' belum terdefinisi.");
+        }
 
+        // 2. Simpan order terbaru di localStorage & update keranjang
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
         saveCartData(remainingItems);
 

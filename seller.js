@@ -15,12 +15,12 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// Master List Produk untuk Rekap Bar
+// List Produk untuk Rekap Bar
 const baseList = ["Original", "Pop Ice Coklat", "Pop Ice Melon", "Pop Ice Strawberry", "Pop Ice Taro", "Pop Ice Vanilla"];
 const toppingList = ["Oreo", "Crumble", "Keju", "Meses"];
 
 /**
- * Format Angka ke Rupiah (misal: 6.000)
+ * Format Angka ke Rupiah
  */
 const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
@@ -32,7 +32,7 @@ const getCompletedOrders = () => JSON.parse(localStorage.getItem('kacau_complete
 const saveOrders = (orders) => localStorage.setItem('kacau_orders', JSON.stringify(orders));
 
 /**
- * Tab Switcher Handler (Pesanan Masuk vs Rekap Penjualan)
+ * Tab Switcher Handler
  */
 if (tabOrdersBtn && tabRekapBtn) {
     tabOrdersBtn.addEventListener('click', () => {
@@ -52,7 +52,7 @@ if (tabOrdersBtn && tabRekapBtn) {
 }
 
 /**
- * Render Antrean Pesanan Seller Dashboard (FIFO: Pesanan awal paling atas)
+ * Antrean Pesanan Seller Dashboard
  */
 const renderSellerDashboard = () => {
     const orders = getOrders();
@@ -70,7 +70,7 @@ const renderSellerDashboard = () => {
         return;
     }
 
-    // Iterasi FIFO (REQ-001 paling atas)
+    // Iterasi FIFO
     orders.forEach((order, index) => {
         const card = document.createElement('div');
         card.style.cssText = 'background: var(--c-yellow); border: 4px solid var(--c-purple); padding: 15px; margin-bottom: 15px; box-shadow: 4px 4px 0 rgba(69, 12, 63, 0.2);';
@@ -117,7 +117,7 @@ const renderSellerDashboard = () => {
 };
 
 /**
- * Hitung Rekap Penjualan & Render Bar Progress Pixel Art (Sorted by Count Desc, then Name A-Z)
+ * Rekap Penjualan & Bar Progress
  */
 const renderRekapStats = () => {
     const completedOrders = getCompletedOrders();
@@ -155,17 +155,17 @@ const renderRekapStats = () => {
     const maxBaseCount = Math.max(...Object.values(baseCounts), 1);
     const maxToppingCount = Math.max(...Object.values(toppingCounts), 1);
 
-    // 1. Sorting Varian Rasa: Terbanyak di atas -> Jika sama, A-Z
+    // 1. Sorting Varian Rasa
     const sortedBases = Object.keys(baseCounts).sort((a, b) => {
-        const countDiff = baseCounts[b] - baseCounts[a]; // Terbanyak dulu
+        const countDiff = baseCounts[b] - baseCounts[a];
         if (countDiff !== 0) return countDiff;
         
         const nameA = a.replace('Pop Ice ', '').toLowerCase();
         const nameB = b.replace('Pop Ice ', '').toLowerCase();
-        return nameA.localeCompare(nameB); // Alfabetis A-Z jika frekuensi sama
+        return nameA.localeCompare(nameB);
     });
 
-    // Render Progress Bar Varian
+    // Progress Bar Varian
     const baseContainer = document.getElementById('base-rekap-list');
     if (baseContainer) {
         baseContainer.innerHTML = '';
@@ -187,12 +187,12 @@ const renderRekapStats = () => {
         });
     }
 
-    // 2. Sorting Topping: Terbanyak di atas -> Jika sama, A-Z
+    // 2. Sorting Topping
     const sortedToppings = Object.keys(toppingCounts).sort((a, b) => {
-        const countDiff = toppingCounts[b] - toppingCounts[a]; // Terbanyak dulu
+        const countDiff = toppingCounts[b] - toppingCounts[a];
         if (countDiff !== 0) return countDiff;
         
-        return a.toLowerCase().localeCompare(b.toLowerCase()); // Alfabetis A-Z jika frekuensi sama
+        return a.toLowerCase().localeCompare(b.toLowerCase());
     });
 
     // Render Progress Bar Topping
@@ -218,7 +218,7 @@ const renderRekapStats = () => {
 };
 
 /**
- * Menyelesaikan Pesanan (Tombol DONE)
+ * Menyelesaikan Pesanan
  */
 window.completeOrder = (index) => {
     let orders = getOrders();
@@ -235,7 +235,7 @@ window.completeOrder = (index) => {
 };
 
 /**
- * Modal Confirm Kustom (FORMAT DATA / Reset DB)
+ * Confirm Kustom
  */
 if (btnFormatData) {
     btnFormatData.addEventListener('click', () => {
@@ -270,12 +270,11 @@ if (actionConfirmBtn) {
     });
 }
 
-// Auto-update real-time saat ada transaksi baru dari tab pembeli
+// Auto-update real-time
 window.addEventListener('storage', (e) => {
     if (e.key === 'kacau_orders') {
         renderSellerDashboard();
     }
 });
 
-// Inisialisasi awal saat seller.html dimuat
 renderSellerDashboard();

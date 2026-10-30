@@ -11,7 +11,7 @@ const recTotal = document.getElementById('rec-total');
 const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 /**
- * Load & Render Data Struk dari localStorage (kacau_latest_order)
+ * Load & Render Data Struk dari localStorage
  */
 const renderReceiptPage = () => {
     const latestOrder = JSON.parse(localStorage.getItem('kacau_latest_order'));
