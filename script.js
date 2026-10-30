@@ -1,4 +1,4 @@
-// State Pilihan Menu Utama (index.html)
+// State Pilihan Menu Utama
 let currentSelection = { base: null, price: 0, node: null };
 let currentToppings = new Map();
 let currentQty = 0; // Default kuantitas 0
@@ -29,7 +29,7 @@ const closeQrisBtn = document.getElementById('close-qris-btn');
 const confirmPayBtn = document.getElementById('confirm-pay-btn');
 
 /**
- * Format Angka ke Rupiah (misal: 6.000)
+ * Format Angka ke Rupiah
  */
 const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
@@ -49,7 +49,7 @@ const getNextOrderId = () => {
 };
 
 /**
- * Kalkulasi Total Pilihan Aktif
+ * Kalkulasi Total Pilihan
  */
 const calculateActiveCupTotal = () => {
     if (!currentSelection.base || currentQty === 0) return 0;
@@ -81,7 +81,7 @@ const resetSelection = () => {
     updateSummaryUI();
 };
 
-// Listener Tombol Kuantitas (- [0] +)
+// Tombol Kuantitas
 if (qtyMinusBtn) {
     qtyMinusBtn.addEventListener('click', () => {
         if (currentQty > 0) {
@@ -100,7 +100,7 @@ if (qtyPlusBtn) {
     });
 }
 
-// Listener Kartu Menu
+// Kartu Menu
 document.querySelectorAll('.card').forEach(card => {
     const btn = card.querySelector('.select-btn');
     if (!btn) return;
@@ -147,7 +147,7 @@ document.querySelectorAll('.card').forEach(card => {
 });
 
 /**
- * Tambah ke Keranjang Lokal
+ * Tambah ke Keranjang
  */
 const addCurrentToCart = () => {
     if (!currentSelection.base) return false;
@@ -291,25 +291,39 @@ if (confirmPayBtn) {
             total: directCheckoutCup.total
         };
 
-        // 1. Kirim ke Firebase Realtime Database
-        if (typeof db !== 'undefined') {
-            db.ref('kacau_orders').push(payload);
-        } else {
-            console.error("Firebase Database 'db' belum terdefinisi.");
-        }
-
-        // 2. Simpan order terbaru di localStorage untuk receipt.html
+        // Simpan order terbaru di localStorage untuk receipt.html
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        resetSelection();
+        // Ubah status tombol saat mengirim data
+        confirmPayBtn.disabled = true;
+        confirmPayBtn.textContent = 'MEMPROSES...';
 
-        if (qrisModal) {
-            qrisModal.classList.add('hidden');
-            qrisModal.classList.remove('active');
+        const navigateToReceipt = () => {
+            resetSelection();
+            if (qrisModal) {
+                qrisModal.classList.add('hidden');
+                qrisModal.classList.remove('active');
+            }
+            if (buyerNameInput) buyerNameInput.value = '';
+            confirmPayBtn.disabled = false;
+            confirmPayBtn.textContent = 'SELESAI BAYAR';
+            window.location.href = 'receipt.html';
+        };
+
+        // Kirim ke Firebase Realtime Database lalu redirect setelah BERHASIL
+        if (typeof db !== 'undefined') {
+            db.ref('kacau_orders').push(payload)
+                .then(() => {
+                    navigateToReceipt();
+                })
+                .catch((error) => {
+                    console.error("Gagal push ke Firebase:", error);
+                    navigateToReceipt();
+                });
+        } else {
+            console.error("Firebase Database 'db' belum terdefinisi.");
+            navigateToReceipt();
         }
-        if (buyerNameInput) buyerNameInput.value = '';
-
-        window.location.href = 'receipt.html';
     });
 }
 

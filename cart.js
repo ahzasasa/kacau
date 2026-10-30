@@ -1,3 +1,4 @@
+// Node DOM References Keranjang
 const container = document.getElementById('cart-items-container');
 const selectAllBar = document.getElementById('select-all-bar');
 const selectAllCheckbox = document.getElementById('select-all-checkbox');
@@ -6,6 +7,7 @@ const grandTotalEl = document.getElementById('cart-grand-total');
 const checkedCountEl = document.getElementById('checked-count');
 const checkoutBtn = document.getElementById('cart-checkout-btn');
 
+// Modal Elements
 const qrisModal = document.getElementById('cart-qris-modal');
 const modalPayTotal = document.getElementById('modal-pay-total');
 const buyerNameInput = document.getElementById('buyer-name-input');
@@ -16,7 +18,13 @@ const alertModal = document.getElementById('alert-modal');
 const alertMessage = document.getElementById('alert-message');
 const closeAlertBtn = document.getElementById('close-alert-btn');
 
-const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+/**
+ * Format Angka ke Rupiah
+ */
+const formatNumber = (num) => {
+    const val = parseInt(num) || 0;
+    return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
 const showAlert = (msg) => {
     if (alertMessage && alertModal) {
@@ -28,8 +36,10 @@ const showAlert = (msg) => {
 
 if (closeAlertBtn) {
     closeAlertBtn.addEventListener('click', () => {
-        alertModal.classList.add('hidden');
-        alertModal.classList.remove('active');
+        if (alertModal) {
+            alertModal.classList.add('hidden');
+            alertModal.classList.remove('active');
+        }
     });
 }
 
@@ -43,6 +53,9 @@ const getNextOrderId = () => {
 const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
 const saveCartData = (data) => localStorage.setItem('kacau_cart', JSON.stringify(data));
 
+/**
+ * Update Total Harga & Jumlah Pesanan Tercentang
+ */
 const updateTotals = () => {
     const cart = getCartData();
     let total = 0;
@@ -50,8 +63,10 @@ const updateTotals = () => {
 
     cart.forEach(item => {
         if (item.checked) {
-            total += item.total;
-            count += (item.qty || 1);
+            const qty = item.qty || 1;
+            const itemTotal = item.total || ((item.unitPrice || 5000) * qty);
+            total += itemTotal;
+            count += qty;
         }
     });
 
@@ -64,14 +79,14 @@ const updateTotals = () => {
 };
 
 /**
- * Kuantitas Item di Keranjang
+ * Ubah Kuantitas Item (- [N] +)
  */
 window.updateCartItemQty = (index, delta) => {
     let cart = getCartData();
     if (!cart[index]) return;
 
     let currentQty = cart[index].qty || 1;
-    let unitPrice = cart[index].unitPrice || (cart[index].total / currentQty);
+    let unitPrice = cart[index].unitPrice || (cart[index].total / currentQty) || 5000;
     let newQty = currentQty + delta;
 
     if (newQty < 1) return;
@@ -84,6 +99,9 @@ window.updateCartItemQty = (index, delta) => {
     renderCart();
 };
 
+/**
+ * Render Kartu Pesanan di Keranjang
+ */
 const renderCart = () => {
     const cart = getCartData();
     if (!container) return;
@@ -93,8 +111,8 @@ const renderCart = () => {
         if (selectAllBar) selectAllBar.style.display = 'none';
         container.innerHTML = `
             <div style="text-align: center; padding: 40px 10px; background: var(--c-green-light); border: 4px solid var(--c-purple);">
-                <p style="font-size: 0.7rem; color: var(--c-purple); margin-bottom: 15px;">KERANJANG KAMU MASIH KOSONG</p>
-                <a href="index.html" class="btn btn-invert" style="display: inline-block; padding: 10px 15px; text-decoration: none;">+ PILIH MENU</a>
+                <p style="font-size: 0.65rem; color: var(--c-purple); margin-bottom: 15px;">KERANJANG KAMU MASIH KOSONG</p>
+                <a href="index.html" class="btn btn-invert" style="display: inline-block; padding: 10px 15px; text-decoration: none; font-size: 0.6rem;">+ PILIH MENU</a>
             </div>
         `;
         updateTotals();
@@ -104,28 +122,35 @@ const renderCart = () => {
     if (selectAllBar) selectAllBar.style.display = 'flex';
 
     cart.forEach((item, index) => {
+        const qty = item.qty || 1;
+        const totalToDisplay = item.total || ((item.unitPrice || 5000) * qty);
         const topStr = item.toppings && item.toppings.length > 0 ? item.toppings.join(', ') : '-';
+
         const card = document.createElement('div');
-        card.className = 'cart-item-card';
+        card.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--c-yellow); border: 3px solid var(--c-purple); padding: 12px; margin-bottom: 12px; box-shadow: 3px 3px 0 rgba(69, 12, 63, 0.2); gap: 10px; flex-wrap: wrap;';
 
         card.innerHTML = `
-            <label class="custom-checkbox-label">
-                <input type="checkbox" class="item-checkbox" data-index="${index}" ${item.checked ? 'checked' : ''}>
-                <span class="checkbox-box"></span>
-            </label>
-            <div class="cart-item-details" style="flex: 1;">
-                <div class="cart-item-title">${item.base}</div>
-                <div class="cart-item-topping">Topping: ${topStr}</div>
-                <div class="cart-item-price">RP ${formatNumber(item.total)}</div>
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 140px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" class="item-checkbox" data-index="${index}" ${item.checked ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--c-purple);">
+                </label>
+
+                <div>
+                    <div style="font-size: 0.65rem; font-weight: bold; color: var(--c-purple); margin-bottom: 4px;">${item.base}</div>
+                    <div style="font-size: 0.5rem; color: var(--c-purple); opacity: 0.8; margin-bottom: 6px;">Topping: ${topStr}</div>
+                    <div style="font-size: 0.6rem; font-weight: bold; color: var(--c-purple);">RP ${formatNumber(totalToDisplay)}</div>
+                </div>
             </div>
             
-            <div class="qty-control" style="margin: 0 10px;">
-                <button class="qty-btn" onclick="updateCartItemQty(${index}, -1)">-</button>
-                <span class="qty-val">${item.qty || 1}</span>
-                <button class="qty-btn" onclick="updateCartItemQty(${index}, 1)">+</button>
-            </div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                <div class="qty-control" style="display: inline-flex; align-items: center; border: 2px solid var(--c-purple); background: var(--c-green-light);">
+                    <button onclick="updateCartItemQty(${index}, -1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">-</button>
+                    <span style="font-family: 'Press Start 2P', cursive; font-size: 0.55rem; color: var(--c-purple); padding: 0 6px; min-width: 18px; text-align: center;">${qty}</span>
+                    <button onclick="updateCartItemQty(${index}, 1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+                </div>
 
-            <button class="btn-text-danger" onclick="removeSingleItem(${index})">[HAPUS]</button>
+                <button onclick="removeSingleItem(${index})" style="background: none; border: none; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: #c0392b; cursor: pointer; padding: 4px;">[HAPUS]</button>
+            </div>
         `;
         container.appendChild(card);
     });
@@ -134,9 +159,11 @@ const renderCart = () => {
         chk.addEventListener('change', (e) => {
             const idx = parseInt(e.target.dataset.index);
             const currentCart = getCartData();
-            currentCart[idx].checked = e.target.checked;
-            saveCartData(currentCart);
-            updateTotals();
+            if (currentCart[idx]) {
+                currentCart[idx].checked = e.target.checked;
+                saveCartData(currentCart);
+                updateTotals();
+            }
         });
     });
 
@@ -185,22 +212,31 @@ if (checkoutBtn) {
             return;
         }
 
-        const totalToPay = selectedItems.reduce((sum, item) => sum + item.total, 0);
-        modalPayTotal.textContent = formatNumber(totalToPay);
-        qrisModal.classList.remove('hidden');
-        qrisModal.classList.add('active');
+        const totalToPay = selectedItems.reduce((sum, item) => {
+            const qty = item.qty || 1;
+            return sum + (item.total || ((item.unitPrice || 5000) * qty));
+        }, 0);
+
+        if (modalPayTotal) modalPayTotal.textContent = formatNumber(totalToPay);
+        
+        if (qrisModal) {
+            qrisModal.classList.remove('hidden');
+            qrisModal.classList.add('active');
+        }
     });
 }
 
 if (closeQrisBtn) {
     closeQrisBtn.addEventListener('click', () => {
-        qrisModal.classList.add('hidden');
-        qrisModal.classList.remove('active');
+        if (qrisModal) {
+            qrisModal.classList.add('hidden');
+            qrisModal.classList.remove('active');
+        }
     });
 }
 
 /**
- * Konfirmasi Bayar
+ * Konfirmasi Bayar & Push ke Firebase Realtime Database
  */
 if (confirmPayBtn) {
     confirmPayBtn.addEventListener('click', () => {
@@ -214,7 +250,10 @@ if (confirmPayBtn) {
         let cart = getCartData();
         const selectedItems = cart.filter(i => i.checked);
         const remainingItems = cart.filter(i => !i.checked);
-        const totalToPay = selectedItems.reduce((sum, item) => sum + item.total, 0);
+        const totalToPay = selectedItems.reduce((sum, item) => {
+            const qty = item.qty || 1;
+            return sum + (item.total || ((item.unitPrice || 5000) * qty));
+        }, 0);
 
         const now = new Date();
         const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -228,22 +267,39 @@ if (confirmPayBtn) {
             total: totalToPay
         };
 
-        // 1. Kirim ke Firebase Realtime Database
-        if (typeof db !== 'undefined') {
-            db.ref('kacau_orders').push(payload);
-        } else {
-            console.error("Firebase Database 'db' belum terdefinisi.");
-        }
-
-        // 2. Simpan order terbaru di localStorage & update keranjang
+        // Simpan order terbaru di localStorage & sisa keranjang
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
         saveCartData(remainingItems);
 
-        qrisModal.classList.add('hidden');
-        qrisModal.classList.remove('active');
-        buyerNameInput.value = '';
+        // Ubah status tombol saat mengirim data
+        confirmPayBtn.disabled = true;
+        confirmPayBtn.textContent = 'MEMPROSES...';
 
-        window.location.href = 'receipt.html';
+        const navigateToReceipt = () => {
+            if (qrisModal) {
+                qrisModal.classList.add('hidden');
+                qrisModal.classList.remove('active');
+            }
+            if (buyerNameInput) buyerNameInput.value = '';
+            confirmPayBtn.disabled = false;
+            confirmPayBtn.textContent = 'SELESAI BAYAR';
+            window.location.href = 'receipt.html';
+        };
+
+        // Kirim ke Firebase lalu redirect setelah BERHASIL
+        if (typeof db !== 'undefined') {
+            db.ref('kacau_orders').push(payload)
+                .then(() => {
+                    navigateToReceipt();
+                })
+                .catch((error) => {
+                    console.error("Gagal push ke Firebase:", error);
+                    navigateToReceipt();
+                });
+        } else {
+            console.error("Firebase Database 'db' belum terdefinisi.");
+            navigateToReceipt();
+        }
     });
 }
 

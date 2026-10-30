@@ -1,12 +1,14 @@
 const firebaseConfig = {
     apiKey: "AIzaSy...",
-    authDomain: "kacau-bazaar.firebaseapp.com",
-    databaseURL: "https://kacau-bazaar-default-rtdb.firebaseio.com",
-    projectId: "kacau-bazaar",
-    storageBucket: "kacau-bazaar.appspot.com",
+    authDomain: "kacau-bazar-437b6.firebaseapp.com",
+    databaseURL: "https://kacau-bazar-437b6-default-rtdb.firebaseio.com",
+    projectId: "kacau-bazar-437b6",
+    storageBucket: "kacau-bazar-437b6.appspot.com",
     messagingSenderId: "123456789",
     appId: "1:123456789:web:abc123def456"
 };
 
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const db = firebase.database();

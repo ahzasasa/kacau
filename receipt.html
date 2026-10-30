@@ -4,36 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KACAU - Struk Pesanan</title>
+    <!-- Font Pixel Art & Stylesheet Global -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body style="min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+<body style="min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; background-color: var(--c-green-light);">
 
-    <!-- Container Struk Presisi di Tengah Layar -->
     <main style="display: flex; justify-content: center; align-items: center; width: 100%;">
-        <div class="receipt-card" style="width: 100%; max-width: 320px;">
+        <div class="receipt-card" style="width: 100%; max-width: 320px; background: var(--c-yellow); border: 4px solid var(--c-purple); padding: 20px; box-shadow: 4px 4px 0 rgba(69, 12, 63, 0.2); text-align: center;">
             <div class="receipt-header">
-                <h3>KACAU</h3>
-                <p>STATISTIKA CINCAU</p>
-                <div class="receipt-divider">--------------------</div>
+                <h3 style="font-size: 0.9rem; color: var(--c-purple); margin-bottom: 5px;">KACAU</h3>
+                <p style="font-size: 0.55rem; color: var(--c-purple); margin-bottom: 10px;">STATISTIKA CINCAU</p>
+                <div style="color: var(--c-purple); font-size: 0.6rem; margin-bottom: 15px;">--------------------</div>
             </div>
-            <div class="receipt-body">
+            
+            <div class="receipt-body" style="font-size: 0.55rem; color: var(--c-purple); text-align: left; line-height: 1.8;">
                 <p>NO: <span id="rec-id">-</span></p>
                 <p>WAKTU: <span id="rec-date">-</span></p>
                 <p>PEMBELI: <span id="rec-name">-</span></p>
-                <div class="receipt-divider">--------------------</div>
-                <div id="rec-items-list" class="receipt-items"></div>
-                <div class="receipt-divider">--------------------</div>
-                <div class="receipt-total">
-                    TOTAL: RP <span id="rec-total">0</span>
+                <div style="color: var(--c-purple); font-size: 0.6rem; margin: 10px 0;">----------------------------</div>
+                <div id="rec-items-list"></div>
+                <div style="color: var(--c-purple); font-size: 0.6rem; margin: 10px 0;">----------------------------</div>
+                <div style="font-weight: bold; font-size: 0.65rem; display: flex; justify-content: space-between;">
+                    <span>TOTAL:</span>
+                    <span>RP <span id="rec-total">0</span></span>
                 </div>
-                <div class="receipt-stamp">[ LUNAS / LET'S GO ]</div>
+                <div style="margin-top: 15px; border: 2px dashed var(--c-purple); padding: 8px; text-align: center; font-weight: bold; font-size: 0.55rem;">[ LUNAS / LET'S GO ]</div>
             </div>
-            <a href="index.html" class="btn btn-invert btn-full" style="display: block; text-decoration: none; margin-top: 15px; text-align: center;">KEMBALI KE MENU</a>
+
+            <a href="index.html" class="btn btn-invert" style="display: block; text-decoration: none; margin-top: 20px; text-align: center; padding: 10px; font-size: 0.55rem;">KEMBALI KE MENU</a>
         </div>
     </main>
 
-    <script src="firebase-config.js"></script>
-    <script src="script.js"></script>
+    <script src="receipt.js"></script>
 </body>
 </html>
