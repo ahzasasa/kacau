@@ -1,8 +1,3 @@
-/**
- * KACAU (Statistika Cincau) - Seller Dashboard Logic (seller.js)
- * Real-time synchronization via Firebase Realtime Database with LocalStorage fallback.
- */
-
 // Node DOM References Seller Dashboard
 const tabOrdersBtn = document.getElementById('tab-orders-btn');
 const tabRekapBtn = document.getElementById('tab-rekap-btn');
@@ -18,15 +13,15 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// Master List Produk untuk Analytics Rekap Penjualan
-const baseList = ["Original", "Pop Ice Coklat", "Pop Ice Melon", "Pop Ice Strawberry", "Pop Ice Taro", "Pop Ice Vanilla"];
-const toppingList = ["Oreo", "Crumble", "Keju", "Meses"];
+// List Produk
+const baseList = ["Original", "Strawberry", "Blueberry", "Mangga", "Jambu", "Leci", "Durian", "Melon", "Sirsak", "Anggur"];
+const toppingList = ["Cereal Choco Chips", "Cereal Froot Loops", "Keju Parut", "Messes", "Cookies"];
 
 let activeOrdersList = [];
 let completedOrdersList = [];
 
 /**
- * Utility: Format Angka ke Rupiah (Defensif)
+ * Format Angka ke Rupiah
  */
 const formatNumber = (num) => {
     const val = parseInt(num) || 0;
@@ -34,7 +29,7 @@ const formatNumber = (num) => {
 };
 
 /**
- * Tab Navigation Handler (Pesanan Masuk vs Rekap Penjualan)
+ * Tab Navigation Handler
  */
 if (tabOrdersBtn && tabRekapBtn) {
     tabOrdersBtn.addEventListener('click', () => {
@@ -54,7 +49,7 @@ if (tabOrdersBtn && tabRekapBtn) {
 }
 
 /**
- * Load & Real-time Listener Data (Firebase Realtime + LocalStorage Sync)
+ * Load & Real-time Listener Data
  */
 const initSellerDatabaseListeners = () => {
     const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
@@ -116,7 +111,7 @@ const initSellerDatabaseListeners = () => {
 };
 
 /**
- * Render Antrean Pesanan Aktif di Quest Log (FIFO Order)
+ * Antrean Pesanan Aktif di Daftar Pesanan
  */
 const renderSellerDashboard = () => {
     if (!questLogContainer) return;
@@ -177,7 +172,7 @@ const renderSellerDashboard = () => {
 };
 
 /**
- * Render Analytics & Rekap Penjualan (Terurut berdasarkan Frekuensi Descending -> Alfabet A-Z)
+ * Analytics & Rekap Penjualan
  */
 const renderRekapStats = () => {
     const totalOmzet = completedOrdersList.reduce((sum, o) => sum + (parseInt(o.total) || 0), 0);
@@ -268,7 +263,7 @@ const renderRekapStats = () => {
 };
 
 /**
- * Menyelesaikan Pesanan (Tombol DONE) -> Pindah ke kacau_completed_orders
+ * Menyelesaikan Pesanan
  */
 window.completeOrder = (firebaseKey, orderId) => {
     const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
@@ -277,7 +272,7 @@ window.completeOrder = (firebaseKey, orderId) => {
     const orderData = { ...targetOrder };
     delete orderData.key;
 
-    // 1. Update Firebase jika ada
+    // 1. Update Firebase
     if (typeof db !== 'undefined' && firebaseKey) {
         db.ref('kacau_completed_orders').push(orderData);
         db.ref('kacau_orders/' + firebaseKey).remove();
@@ -344,5 +339,4 @@ if (actionConfirmBtn) {
     });
 }
 
-// Inisialisasi Listener & Render Utama
 initSellerDatabaseListeners();
