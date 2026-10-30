@@ -1,3 +1,8 @@
+/**
+ * KACAU (Statistika Cincau) - Customer Catalog Logic (script.js)
+ * Real-time Firebase Database Integration & LocalStorage Sync
+ */
+
 // State Pilihan Menu Utama
 let currentSelection = { base: null, price: 0, node: null };
 let currentToppings = new Map();
@@ -31,220 +36,330 @@ const confirmPayBtn = document.getElementById('confirm-pay-btn');
 /**
  * Format Angka ke Rupiah
  */
-const formatNumber = (num) => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const formatNumber = (num) => {
+    const val = parseInt(num) || 0;
+    return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
+/**
+ * Custom Alert Pop-up
+ */
 const showCustomAlert = (pesan) => {
     if (alertMessage && alertModal) {
         alertMessage.textContent = pesan;
         alertModal.classList.remove('hidden');
         alertModal.classList.add('active');
+    } else {
+        alert(pesan);
     }
 };
 
+if (btnCloseAlert) {
+    btnCloseAlert.addEventListener('click', () => {
+        if (alertModal) {
+            alertModal.classList.add('hidden');
+            alertModal.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * Generate Next Order ID (REQ-001, REQ-002, dst.)
+ */
 const getNextOrderId = () => {
-    let currentCounter = parseInt(localStorage.getItem('kacau_order_counter')) || 0;
-    currentCounter += 1;
-    localStorage.setItem('kacau_order_counter', currentCounter);
-    return 'REQ-' + String(currentCounter).padStart(3, '0');
+    let counter = parseInt(localStorage.getItem('kacau_order_counter')) || 0;
+    counter++;
+    localStorage.setItem('kacau_order_counter', counter);
+    return `REQ-${String(counter).padStart(3, '0')}`;
 };
 
 /**
- * Kalkulasi Total Pilihan
+ * LocalStorage Cart Management
  */
-const calculateActiveCupTotal = () => {
-    if (!currentSelection.base || currentQty === 0) return 0;
-    let toppingSum = 0;
-    currentToppings.forEach(price => toppingSum += price);
-    return (currentSelection.price + toppingSum) * currentQty;
+const getCartData = () => {
+    return JSON.parse(localStorage.getItem('kacau_cart')) || [];
 };
 
+const saveCartData = (cart) => {
+    localStorage.setItem('kacau_cart', JSON.stringify(cart));
+    updateCartBadge();
+};
+
+const updateCartBadge = () => {
+    const cart = getCartData();
+    const totalItems = cart.reduce((sum, item) => sum + (item.qty || 1), 0);
+    if (domCartCount) {
+        domCartCount.textContent = totalItems;
+    }
+};
+
+/**
+ * Kalkulasi Total Harga & Update UI Bottom Bar
+ */
 const updateSummaryUI = () => {
-    const activeTotal = calculateActiveCupTotal();
-    if (domTotal) domTotal.textContent = formatNumber(activeTotal);
-    
-    const cart = JSON.parse(localStorage.getItem('kacau_cart')) || [];
-    if (domCartCount) domCartCount.textContent = cart.length;
+    let singleUnitPrice = currentSelection.price;
+    currentToppings.forEach((price) => {
+        singleUnitPrice += price;
+    });
+
+    const grandTotal = singleUnitPrice * currentQty;
+
+    if (domTotal) {
+        domTotal.textContent = formatNumber(grandTotal);
+    }
+
+    // Simpan state cup aktif jika sudah pilih rasa utama
+    if (currentSelection.base && currentQty > 0) {
+        const toppingList = Array.from(currentToppings.keys());
+        directCheckoutCup = {
+            base: currentSelection.base,
+            toppings: toppingList,
+            qty: currentQty,
+            unitPrice: singleUnitPrice,
+            total: grandTotal
+        };
+    } else {
+        directCheckoutCup = null;
+    }
 };
 
+/**
+ * Reset Pilihan Menu
+ */
 const resetSelection = () => {
     currentSelection = { base: null, price: 0, node: null };
     currentToppings.clear();
     currentQty = 0;
-    if (qtyValEl) qtyValEl.textContent = '0';
+    if (qtyValEl) qtyValEl.value = '0';
     directCheckoutCup = null;
-    
-    document.querySelectorAll('.select-btn').forEach(btn => {
-        btn.classList.remove('active-state');
-        btn.textContent = btn.closest('.card').dataset.type === 'base' ? 'PILIH' : 'TAMBAH';
+
+    document.querySelectorAll('.card').forEach(card => {
+        card.classList.remove('selected');
+        const selectBtn = card.querySelector('.select-btn');
+        if (selectBtn) {
+            selectBtn.classList.remove('active-state');
+            selectBtn.textContent = card.dataset.type === 'base' ? 'PILIH' : 'TAMBAH';
+        }
     });
-    
+
     updateSummaryUI();
 };
 
-// Tombol Kuantitas
-if (qtyMinusBtn) {
-    qtyMinusBtn.addEventListener('click', () => {
-        if (currentQty > 0) {
-            currentQty--;
-            if (qtyValEl) qtyValEl.textContent = currentQty;
-            updateSummaryUI();
+/**
+ * Handling Klik Kartu Produk (Base Flavor & Topping)
+ */
+const handleCardSelection = (card, selectBtn, type, name, price) => {
+    if (type === 'base') {
+        // Pilihan Varian Rasa Utama (Single Select)
+        if (currentSelection.node && currentSelection.node !== card) {
+            currentSelection.node.classList.remove('selected');
+            const prevBtn = currentSelection.node.querySelector('.select-btn');
+            if (prevBtn) {
+                prevBtn.classList.remove('active-state');
+                prevBtn.textContent = 'PILIH';
+            }
         }
-    });
-}
 
-if (qtyPlusBtn) {
-    qtyPlusBtn.addEventListener('click', () => {
-        currentQty++;
-        if (qtyValEl) qtyValEl.textContent = currentQty;
-        updateSummaryUI();
-    });
-}
+        if (currentSelection.base === name) {
+            // Deselect jika diklik ulang
+            currentSelection = { base: null, price: 0, node: null };
+            card.classList.remove('selected');
+            if (selectBtn) {
+                selectBtn.classList.remove('active-state');
+                selectBtn.textContent = 'PILIH';
+            }
+            currentQty = 0;
+            if (qtyValEl) qtyValEl.value = '0';
+        } else {
+            // Select Base Rasa
+            currentSelection = { base: name, price: price, node: card };
+            card.classList.add('selected');
+            if (selectBtn) {
+                selectBtn.classList.add('active-state');
+                selectBtn.textContent = 'TERPILIH';
+            }
 
-// Kartu Menu
+            // Otomatis set kuantitas = 1 saat varian pertama kali dipilih
+            if (currentQty === 0) {
+                currentQty = 1;
+                if (qtyValEl) qtyValEl.value = '1';
+            }
+        }
+    } else if (type === 'topping') {
+        // Pilihan Topping Tambahan (Multi Select)
+        if (currentToppings.has(name)) {
+            currentToppings.delete(name);
+            card.classList.remove('selected');
+            if (selectBtn) {
+                selectBtn.classList.remove('active-state');
+                selectBtn.textContent = 'TAMBAH';
+            }
+        } else {
+            currentToppings.set(name, price);
+            card.classList.add('selected');
+            if (selectBtn) {
+                selectBtn.classList.add('active-state');
+                selectBtn.textContent = 'TERPILIH';
+            }
+        }
+    }
+
+    updateSummaryUI();
+};
+
 document.querySelectorAll('.card').forEach(card => {
-    const btn = card.querySelector('.select-btn');
-    if (!btn) return;
-
+    const selectBtn = card.querySelector('.select-btn');
     const type = card.dataset.type;
-    const price = parseInt(card.dataset.price);
     const name = card.dataset.name;
+    const price = parseInt(card.dataset.price) || 0;
 
-    btn.addEventListener('click', () => {
-        if (type === 'base') {
-            if (currentSelection.node && currentSelection.node !== btn) {
-                currentSelection.node.classList.remove('active-state');
-                currentSelection.node.textContent = 'PILIH';
-            }
-
-            if (btn.classList.contains('active-state')) {
-                btn.classList.remove('active-state');
-                btn.textContent = 'PILIH';
-                currentSelection = { base: null, price: 0, node: null };
-                currentQty = 0;
-                if (qtyValEl) qtyValEl.textContent = '0';
-            } else {
-                btn.classList.add('active-state');
-                btn.textContent = 'TERPILIH';
-                currentSelection = { base: name, price: price, node: btn };
-                if (currentQty === 0) {
-                    currentQty = 1;
-                    if (qtyValEl) qtyValEl.textContent = '1';
-                }
-            }
-        } else if (type === 'topping') {
-            if (currentToppings.has(name)) {
-                currentToppings.delete(name);
-                btn.classList.remove('active-state');
-                btn.textContent = 'TAMBAH';
-            } else {
-                currentToppings.set(name, price);
-                btn.classList.add('active-state');
-                btn.textContent = 'TERPILIH';
-            }
-        }
-        updateSummaryUI();
+    card.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        handleCardSelection(card, selectBtn, type, name, price);
     });
+
+    if (selectBtn) {
+        selectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleCardSelection(card, selectBtn, type, name, price);
+        });
+    }
 });
 
 /**
- * Tambah ke Keranjang
+ * Validasi Rasa Utama Sebelum Mengubah Kuantitas
  */
-const addCurrentToCart = () => {
-    if (!currentSelection.base) return false;
-
-    const toppingsArr = Array.from(currentToppings.keys()).sort();
-    let toppingSum = 0;
-    currentToppings.forEach(p => toppingSum += p);
-    const unitPrice = currentSelection.price + toppingSum;
-
-    let cart = JSON.parse(localStorage.getItem('kacau_cart')) || [];
-
-    const existingIndex = cart.findIndex(item => {
-        if (item.base !== currentSelection.base) return false;
-        const itemToppings = (item.toppings || []).slice().sort();
-        if (itemToppings.length !== toppingsArr.length) return false;
-        return itemToppings.every((top, idx) => top === toppingsArr[idx]);
-    });
-
-    if (existingIndex !== -1) {
-        const existingItem = cart[existingIndex];
-        const newQty = (existingItem.qty || 1) + currentQty;
-        existingItem.qty = newQty;
-        existingItem.unitPrice = unitPrice;
-        existingItem.total = unitPrice * newQty;
-    } else {
-        const newItem = {
-            id: Date.now() + Math.random(),
-            base: currentSelection.base,
-            toppings: toppingsArr,
-            qty: currentQty,
-            unitPrice: unitPrice,
-            total: unitPrice * currentQty,
-            checked: false
-        };
-        cart.push(newItem);
+const validateBaseSelected = () => {
+    if (!currentSelection.base) {
+        showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+        return false;
     }
-
-    localStorage.setItem('kacau_cart', JSON.stringify(cart));
-    resetSelection();
     return true;
 };
 
+/**
+ * LOGIKA KUANTITAS (PLUS, MINUS, & DIRECT INPUT KETIK)
+ */
+if (qtyMinusBtn) {
+    qtyMinusBtn.onclick = () => {
+        if (!validateBaseSelected()) return;
+
+        if (currentQty > 0) {
+            currentQty--;
+            if (qtyValEl) qtyValEl.value = currentQty;
+            updateSummaryUI();
+        }
+    };
+}
+
+if (qtyPlusBtn) {
+    qtyPlusBtn.onclick = () => {
+        if (!validateBaseSelected()) return;
+
+        currentQty++;
+        if (qtyValEl) qtyValEl.value = currentQty;
+        updateSummaryUI();
+    };
+}
+
+if (qtyValEl) {
+    // Saat diklik/fokus: bersihkan angka '0' agar siap ketik angka baru
+    qtyValEl.onfocus = () => {
+        if (!currentSelection.base) {
+            qtyValEl.blur();
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            return;
+        }
+
+        if (qtyValEl.value === '0' || qtyValEl.value === 0) {
+            qtyValEl.value = '';
+        } else {
+            qtyValEl.select();
+        }
+    };
+
+    // Saat diketik langsung dari keyboard
+    qtyValEl.oninput = (e) => {
+        if (!currentSelection.base) {
+            qtyValEl.value = '0';
+            currentQty = 0;
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            updateSummaryUI();
+            return;
+        }
+
+        let valStr = e.target.value;
+        if (valStr === '') {
+            currentQty = 0;
+        } else {
+            let val = parseInt(valStr);
+            if (isNaN(val) || val < 0) val = 0;
+            currentQty = val;
+        }
+        updateSummaryUI();
+    };
+
+    // Saat kursor meninggalkan input box
+    qtyValEl.onblur = (e) => {
+        if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+            qtyValEl.value = currentQty;
+        }
+    };
+}
+
+/**
+ * Tambah ke Keranjang (+ KERANJANG)
+ */
 if (addToCartBtn) {
     addToCartBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
             showCustomAlert('Pilih varian rasa utamanya dulu ya.');
             return;
         }
-
         if (currentQty <= 0) {
-            showCustomAlert('Tambahkan kuantitas pesanan minimal 1.');
+            showCustomAlert('Tentukan jumlah/kuantitas pesanan kamu dulu.');
             return;
         }
 
-        addCurrentToCart();
+        const cart = getCartData();
+        const toppingList = Array.from(currentToppings.keys());
+        let singleUnitPrice = currentSelection.price;
+        currentToppings.forEach(p => singleUnitPrice += p);
 
-        addToCartBtn.classList.add('btn-shake');
-        setTimeout(() => addToCartBtn.classList.remove('btn-shake'), 200);
+        cart.push({
+            id: Date.now(),
+            base: currentSelection.base,
+            toppings: toppingList,
+            qty: currentQty,
+            unitPrice: singleUnitPrice,
+            total: singleUnitPrice * currentQty,
+            checked: true
+        });
 
-        if (cartIconBtn) {
-            cartIconBtn.classList.add('cart-pop');
-            setTimeout(() => cartIconBtn.classList.remove('cart-pop'), 300);
-        }
-
-        showCustomAlert('Pesanan berhasil dimasukkan ke keranjang!');
+        saveCartData(cart);
+        showCustomAlert('Pesanan berhasil ditambahkan ke keranjang!');
+        resetSelection();
     });
 }
 
-// Checkout Langsung dari index.html
+/**
+ * Langsung Checkout (CHECKOUT) -> Buka Modal QRIS
+ */
 if (checkoutBtn) {
     checkoutBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
-            showCustomAlert('Pilih varian rasa utamanya dulu ya untuk checkout langsung!');
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
             return;
         }
-
         if (currentQty <= 0) {
-            showCustomAlert('Tambahkan kuantitas pesanan minimal 1.');
+            showCustomAlert('Tentukan jumlah/kuantitas pesanan kamu dulu.');
             return;
         }
 
-        let toppingSum = 0;
-        currentToppings.forEach(p => toppingSum += p);
-        const unitPrice = currentSelection.price + toppingSum;
-        const totalToPay = unitPrice * currentQty;
+        if (modalPayTotal) {
+            modalPayTotal.textContent = formatNumber(directCheckoutCup.total);
+        }
 
-        directCheckoutCup = {
-            id: Date.now() + Math.random(),
-            base: currentSelection.base,
-            toppings: Array.from(currentToppings.keys()),
-            qty: currentQty,
-            unitPrice: unitPrice,
-            total: totalToPay
-        };
-
-        if (modalPayTotal) modalPayTotal.textContent = formatNumber(totalToPay);
-        
         if (qrisModal) {
             qrisModal.classList.remove('hidden');
             qrisModal.classList.add('active');
@@ -258,12 +373,11 @@ if (closeQrisBtn) {
             qrisModal.classList.add('hidden');
             qrisModal.classList.remove('active');
         }
-        directCheckoutCup = null;
     });
 }
 
 /**
- * Konfirmasi Pembayaran & Push Transaksi ke Firebase Cloud DB
+ * Konfirmasi Pembayaran (SELESAI BAYAR) -> Firebase Sync & Redirect Receipt
  */
 if (confirmPayBtn) {
     confirmPayBtn.addEventListener('click', () => {
@@ -291,10 +405,9 @@ if (confirmPayBtn) {
             total: directCheckoutCup.total
         };
 
-        // Simpan order terbaru di localStorage untuk receipt.html
+        // Simpan transaksi terbaru ke localStorage untuk receipt.html
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        // Ubah status tombol saat mengirim data
         confirmPayBtn.disabled = true;
         confirmPayBtn.textContent = 'MEMPROSES...';
 
@@ -310,7 +423,7 @@ if (confirmPayBtn) {
             window.location.href = 'receipt.html';
         };
 
-        // Kirim ke Firebase Realtime Database lalu redirect setelah BERHASIL
+        // Push ke Firebase Realtime Database lalu redirect setelah sukses
         if (typeof db !== 'undefined') {
             db.ref('kacau_orders').push(payload)
                 .then(() => {
@@ -321,25 +434,18 @@ if (confirmPayBtn) {
                     navigateToReceipt();
                 });
         } else {
-            console.error("Firebase Database 'db' belum terdefinisi.");
+            console.error("Firebase Database 'db' tidak terdefinisi.");
             navigateToReceipt();
         }
     });
 }
 
-if (btnCloseAlert) {
-    btnCloseAlert.addEventListener('click', () => {
-        if (alertModal) {
-            alertModal.classList.add('hidden');
-            alertModal.classList.remove('active');
-        }
-    });
-}
+// Inisialisasi awal angka badge keranjang
+updateCartBadge();
 
+// Event Listener Klik Tombol Keranjang (Redirect ke cart.html)
 if (cartIconBtn) {
     cartIconBtn.addEventListener('click', () => {
         window.location.href = 'cart.html';
     });
 }
-
-updateSummaryUI();

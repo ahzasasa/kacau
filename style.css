@@ -21,37 +21,39 @@ body {
 
 /* NAVBAR NAVIGATION */
 .navbar {
+    background-color: var(--c-purple) !important;
+    border-bottom: 4px solid var(--c-purple);
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--c-green-light);
-    border-bottom: 4px solid var(--c-purple);
-    padding: 15px 20px;
-    position: relative;
-    z-index: 100;
 }
 
-.logo {
-    font-size: 1.1rem;
+/* Logo KACAU */
+.navbar .logo {
+    color: var(--c-yellow) !important;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9rem;
     font-weight: bold;
-    color: var(--c-purple);
 }
 
-.nav-links {
-    display: flex;
-    gap: 12px;
-}
-
+/* Link Navigasi */
 .nav-links a {
-    color: var(--c-purple);
+    color: var(--c-yellow) !important;
     text-decoration: none;
-    font-size: 0.6rem;
-    padding: 5px 8px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.65rem;
+    margin-left: 15px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
 }
 
-.nav-links a.active,
-.nav-links a:hover {
-    border-bottom: 3px solid var(--c-purple);
+/* Hover & Tab Aktif */
+.nav-links a:hover,
+.nav-links a.active {
+    color: var(--c-yellow) !important;
+    border-bottom: 2px solid var(--c-yellow) !important;
 }
 
 /* HERO BANNER */
@@ -846,4 +848,46 @@ body {
     color: var(--c-purple);
     font-weight: bold;
     border-color: var(--c-purple);
+}
+
+/* Styling Input Kuantitas */
+.qty-input {
+    width: 36px;
+    height: 100%;
+    border: 2px solid var(--c-purple);
+    background: var(--c-yellow);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.65rem;
+    color: var(--c-purple);
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Styling Input Kuantitas di Cart Page */
+.cart-qty-input {
+    width: 30px;
+    height: 26px;
+    border: none;
+    background: var(--c-yellow);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.65rem;
+    color: var(--c-purple);
+    text-align: center;
+    outline: none;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.cart-qty-input::-webkit-outer-spin-button,
+.cart-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }

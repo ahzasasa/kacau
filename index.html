@@ -39,7 +39,9 @@
         <div class="section-header">
             <h2>PRODUCTS</h2>
             <div class="toolbar">
-                <button class="cart-icon">CART [<span id="cart-count">0</span>]</button>
+                <button class="cart-icon" onclick="window.location.href='cart.html'">
+                    CART [<span id="cart-count">0</span>]
+                </button>
             </div>
         </div>
 
@@ -148,10 +150,13 @@
         </div>
 
         <!-- tombol kuantitas -->
-        <div class="qty-control">
-            <button id="qty-minus" class="qty-btn">-</button>
-            <span id="qty-val" class="qty-val">0</span>
-            <button id="qty-plus" class="qty-btn">+</button>
+        <div class="qty-control" style="display: inline-flex; align-items: center; background: var(--c-purple); border: 2px solid var(--c-purple); height: 36px; padding: 0;">
+            <button id="qty-minus" class="qty-btn" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.7rem; width: 28px; height: 100%; cursor: pointer;">-</button>
+        
+            <!-- Input Angka Kuantitas (Box Tengah Kuning, Teks Ungu) -->
+            <input type="number" id="qty-val" class="qty-input" value="0" min="0" autocomplete="off">
+        
+            <button id="qty-plus" class="qty-btn" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.7rem; width: 28px; height: 100%; cursor: pointer;">+</button>
         </div>
 
         <button id="add-to-cart-btn" class="btn">KERANJANG</button>
@@ -188,17 +193,23 @@
     </div>
 
     <!-- footer -->
-    <footer class="footer">
-        <div class="footer-col">
-            <h2 class="footer-logo">KACAU</h2>
+    <footer style="background: var(--c-purple); padding: 25px 20px; color: var(--c-yellow); display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 100px;">
+        <div>
+            <h3 style="font-family: 'Press Start 2P', cursive; font-size: 0.75rem; margin-bottom: 10px;">KACAU</h3>
         </div>
-        <div class="footer-col">
-            <h4>CONTACT US</h4>
-            <p>09123456789</p>
+    
+        <div>
+            <h3 style="font-family: 'Press Start 2P', cursive; font-size: 0.75rem; margin-bottom: 10px;">WHATS APP</h3>
+            <a href="https://wa.me/6285641452671" target="_blank" style="color: var(--c-yellow); text-decoration: none; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; display: block;">
+                Tim Kacau
+            </a>
         </div>
-        <div class="footer-col">
-            <h4>SOCIAL MEDIA</h4>
-            <p>@STATISTIKA.CINCAU</p>
+    
+        <div>
+            <h3 style="font-family: 'Press Start 2P', cursive; font-size: 0.75rem; margin-bottom: 10px;">INSTAGRAM</h3>
+            <a href="https://instagram.com/stat.kacau" target="_blank" style="color: var(--c-yellow); text-decoration: none; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; display: block;">
+                @stat.kacau
+            </a>
         </div>
     </footer>
     
