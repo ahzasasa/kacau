@@ -14,7 +14,7 @@ const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
 // List Produk
-const baseList = ["Original", "Strawberry", "Blueberry", "Mangga", "Jambu", "Leci", "Durian", "Melon", "Sirsak", "Anggur"];
+const baseList = ["Original", "Strawberry", "Blueberry", "Mangga", "Jambu", "Leci", "Chocolate", "Melon", "Sirsak", "Anggur"];
 const toppingList = ["Cereal Choco Chips", "Cereal Froot Loops", "Keju Parut", "Messes", "Cookies"];
 
 let activeOrdersList = [];
