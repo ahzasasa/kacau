@@ -80,19 +80,23 @@
                 </div>
             </div>
     
-            <!-- konfirmasi kasir -->
+            <!-- Konfirmasi Kasir -->
             <div id="modal-step-waiting" style="display: none; padding: 10px 0;">
                 <div style="font-size: 2rem; margin-bottom: 10px;">⏳</div>
                 <h4 style="font-family: 'Press Start 2P', cursive; font-size: 0.65rem; color: var(--c-purple); margin-bottom: 10px;">MENUNGGU KONFIRMASI KASIR</h4>
                 
                 <p style="font-size: 0.55rem; color: var(--c-purple); line-height: 1.4; margin-bottom: 15px;">
                     Pesanan kamu <b id="waiting-order-id">REQ-000</b> sudah terdaftar.<br>
-                    Kirim bukti transfer ke <a id="wa-confirm-link" href="https://wa.me/6281233209503" target="_blank" style="color: var(--c-purple); font-weight: bold; text-decoration: underline;">Farrel</a> untuk cetak nota.
+                    Klik tombol konfirmasi di bawah untuk cetak nota.
                 </p>
-    
-                <div id="waiting-status-badge" style="background: var(--c-yellow); border: 2px solid var(--c-purple); padding: 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: var(--c-purple);">
-                    STATUS: UNPAID
+
+                <div id="waiting-status-badge" style="background: var(--c-yellow); border: 2px solid var(--c-purple); padding: 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: var(--c-purple); margin-bottom: 12px;">
+                    STATUS: MENUNGGU KASIR
                 </div>
+
+                <a id="wa-confirm-link" href="https://wa.me/6281233209503" target="_blank" class="btn" style="display: block; width: 100%; padding: 10px 5px; font-size: 0.55rem; background: var(--c-purple); color: var(--c-yellow); border: 2px solid var(--c-purple); text-decoration: none; text-align: center; box-sizing: border-box;">
+                    KONFIRMASI
+                </a>
             </div>
         </div>
     </div>

@@ -13,14 +13,21 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// List Produk Default
-const baseList = ["Original", "Blueberry", "Grape", "Guava", "Mango", "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate", ];
-const toppingList = ["Cereal Choco Chips", "Cereal Froot Loops", "Cheese", "Chocolate Sprinkles", "Cookie Crumble"];
+// List Produk Resmi (Match 100% dengan index.html, cart.html & script.js)
+const baseList = [
+    "Original", "Blueberry", "Grape", "Guava", "Mango", 
+    "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate"
+];
 
+const toppingList = [
+    "Cereal Choco Chips", "Cereal Froot Loops", "Cheese", "Chocolate Sprinkles", "Cookie Crumble"
+];
+
+// Default Stock diset 0 untuk seluruh produk
 const defaultStock = {
     bases: {
-        "Original": 0, "Strawberry": 0, "Blueberry": 0, "Mangga": 20,
-        "Jambu": 0, "Leci": 0, "Chocolate": 0, "Melon": 0, "Sirsak": 0, "Anggur": 0
+        "Original": 0, "Blueberry": 0, "Grape": 0, "Guava": 0, "Mango": 0,
+        "Melon": 0, "Strawberry": 0, "Bubble Gum": 0, "Cookies and Cream": 0, "Chocolate": 0
     },
     toppings: {
         "Cereal Choco Chips": 0, "Cereal Froot Loops": 0, "Cheese": 0, "Chocolate Sprinkles": 0, "Cookie Crumble": 0
@@ -68,7 +75,7 @@ const initSellerDatabaseListeners = () => {
     const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
 
     if (typeof db !== 'undefined') {
-        // Listener Pesanan Masuk
+        // Listener Pesanan Masuk Real-time
         db.ref('kacau_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             activeOrdersList = [];
@@ -98,7 +105,7 @@ const initSellerDatabaseListeners = () => {
             renderSellerDashboard();
         });
 
-        // Listener Pesanan Selesai
+        // Listener Pesanan Selesai Real-time
         db.ref('kacau_completed_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             completedOrdersList = [];
@@ -112,7 +119,7 @@ const initSellerDatabaseListeners = () => {
             renderRekapStats();
         });
 
-        // Listener Stok Produk
+        // Listener Stok Produk Real-time
         db.ref('kacau_inventory').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.bases && data.toppings) {
@@ -173,16 +180,25 @@ const renderSellerDashboard = () => {
         if (order.items && Array.isArray(order.items)) {
             order.items.forEach(item => {
                 const qty = item.qty || 1;
-                const baseName = item.base || item.name || '-';
-                const topStr = item.toppings && item.toppings.length > 0 ? item.toppings.join(', ') : '-';
+                const baseName = item.base || item.name || item.title || 'Varian Cincau';
+                
+                let topStr = '-';
+                if (item.toppings && Array.isArray(item.toppings) && item.toppings.length > 0) {
+                    topStr = item.toppings.join(', ');
+                } else if (typeof item.toppings === 'string' && item.toppings.trim() !== '') {
+                    topStr = item.toppings;
+                }
+
                 itemsHtml += `
-                    <div style="font-size: 0.55rem; color: var(--c-purple); margin-bottom: 8px; line-height: 1.5;">
+                    <div style="font-size: 0.55rem; color: var(--c-purple); margin-bottom: 8px; line-height: 1.5; background: rgba(255,255,255,0.4); padding: 6px; border: 1px dashed var(--c-purple);">
                         <div><strong>QTY:</strong> ${qty}x</div>
                         <div><strong>BASE:</strong> ${baseName}</div>
                         <div><strong>EXT:</strong> ${topStr}</div>
                     </div>
                 `;
             });
+        } else {
+            itemsHtml = `<div style="font-size: 0.55rem; color: #c0392b;">Detail menu tidak terbaca</div>`;
         }
 
         const firebaseKey = order.key || '';
@@ -195,6 +211,10 @@ const renderSellerDashboard = () => {
         const confirmPayBtnHtml = !isPaid
             ? `<button class="btn" onclick="confirmPayment('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 6px 10px; cursor: pointer; background: #27ae60; color: #fff;">KONFIRMASI LUNAS</button>`
             : '';
+
+        const customerInfo = order.prodi && order.prodi !== '-' 
+            ? `${order.customer || 'Pembeli'} (${order.prodi})` 
+            : (order.customer || 'Pembeli');
 
         card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
@@ -212,7 +232,7 @@ const renderSellerDashboard = () => {
             </div>
             
             <div style="font-size: 0.75rem; font-weight: bold; color: var(--c-purple); margin-bottom: 10px;">
-                > ${order.customer || 'Pembeli'}
+                > ${customerInfo}
             </div>
 
             ${itemsHtml}
@@ -244,13 +264,15 @@ const renderRekapStats = () => {
         if (order.items && Array.isArray(order.items)) {
             order.items.forEach(item => {
                 const qty = item.qty || 1;
-                if (item.base) {
-                    const matchedBase = baseList.find(b => b.toLowerCase() === item.base.toLowerCase()) || item.base;
+                const rawBase = item.base || item.name || item.title;
+                if (rawBase) {
+                    const matchedBase = baseList.find(b => b.toLowerCase().trim() === rawBase.toLowerCase().trim()) || rawBase;
                     baseCounts[matchedBase] = (baseCounts[matchedBase] || 0) + qty;
                 }
+
                 if (item.toppings && Array.isArray(item.toppings)) {
                     item.toppings.forEach(top => {
-                        const matchedTop = toppingList.find(t => t.toLowerCase() === top.toLowerCase()) || top;
+                        const matchedTop = toppingList.find(t => t.toLowerCase().trim() === top.toLowerCase().trim()) || top;
                         toppingCounts[matchedTop] = (toppingCounts[matchedTop] || 0) + qty;
                     });
                 }
@@ -264,7 +286,7 @@ const renderRekapStats = () => {
     const sortedBases = Object.keys(baseCounts).sort((a, b) => {
         const countDiff = baseCounts[b] - baseCounts[a];
         if (countDiff !== 0) return countDiff;
-        return a.replace('Pop Ice ', '').toLowerCase().localeCompare(b.replace('Pop Ice ', '').toLowerCase());
+        return a.toLowerCase().localeCompare(b.toLowerCase());
     });
 
     const baseContainer = document.getElementById('base-rekap-list');
@@ -272,13 +294,12 @@ const renderRekapStats = () => {
         baseContainer.innerHTML = '';
         sortedBases.forEach(name => {
             const count = baseCounts[name];
-            const displayName = name.replace('Pop Ice ', '');
             const barWidth = (count / maxBaseCount) * 100;
 
             const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple);';
+            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple); margin-bottom: 6px;';
             row.innerHTML = `
-                <div style="width: 100px; flex-shrink: 0;">${displayName}</div>
+                <div style="width: 110px; flex-shrink: 0; font-weight: bold;">${name}</div>
                 <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
                     <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
                 </div>
@@ -302,9 +323,9 @@ const renderRekapStats = () => {
             const barWidth = (count / maxToppingCount) * 100;
 
             const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple);';
+            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple); margin-bottom: 6px;';
             row.innerHTML = `
-                <div style="width: 100px; flex-shrink: 0;">${name}</div>
+                <div style="width: 110px; flex-shrink: 0; font-weight: bold;">${name}</div>
                 <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
                     <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
                 </div>
@@ -316,7 +337,7 @@ const renderRekapStats = () => {
 };
 
 /**
- * Render Input Controls Manajemen Stok
+ * Render Input Controls Manajemen Stok (Default 0 & Konsisten)
  */
 const renderStockManagementUI = () => {
     const baseStockContainer = document.getElementById('seller-base-stock-list');
@@ -325,18 +346,21 @@ const renderStockManagementUI = () => {
     if (!currentStock.bases) currentStock.bases = { ...defaultStock.bases };
     if (!currentStock.toppings) currentStock.toppings = { ...defaultStock.toppings };
 
+    const btnStyle = "background: var(--c-purple); color: var(--c-yellow); border: none; width: 24px; height: 24px; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;";
+    const inputStyle = "width: 45px; height: 24px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 0; box-sizing: border-box;";
+
     if (baseStockContainer) {
         baseStockContainer.innerHTML = '';
         baseList.forEach(baseName => {
-            const val = currentStock.bases[baseName] !== undefined ? currentStock.bases[baseName] : 20;
+            const val = currentStock.bases[baseName] !== undefined ? currentStock.bases[baseName] : 0;
             const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple);';
+            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple); margin-bottom: 4px;';
             row.innerHTML = `
                 <span style="font-weight: bold; color: var(--c-purple);">${baseName}</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <button onclick="updateStockItem('bases', '${baseName}', -1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">-</button>
-                    <input type="number" value="${val}" onchange="setStockItem('bases', '${baseName}', this.value)" style="width: 45px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 2px;">
-                    <button onclick="updateStockItem('bases', '${baseName}', 1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">+</button>
+                    <button onclick="updateStockItem('bases', '${baseName}', -1)" style="${btnStyle}">-</button>
+                    <input type="number" value="${val}" onchange="setStockItem('bases', '${baseName}', this.value)" style="${inputStyle}">
+                    <button onclick="updateStockItem('bases', '${baseName}', 1)" style="${btnStyle}">+</button>
                 </div>
             `;
             baseStockContainer.appendChild(row);
@@ -346,15 +370,15 @@ const renderStockManagementUI = () => {
     if (toppingStockContainer) {
         toppingStockContainer.innerHTML = '';
         toppingList.forEach(topName => {
-            const val = currentStock.toppings[topName] !== undefined ? currentStock.toppings[topName] : 30;
+            const val = currentStock.toppings[topName] !== undefined ? currentStock.toppings[topName] : 0;
             const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple);';
+            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple); margin-bottom: 4px;';
             row.innerHTML = `
                 <span style="font-weight: bold; color: var(--c-purple);">${topName}</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <button onclick="updateStockItem('toppings', '${topName}', -1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">-</button>
-                    <input type="number" value="${val}" onchange="setStockItem('toppings', '${topName}', this.value)" style="width: 45px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 2px;">
-                    <button onclick="updateStockItem('toppings', '${topName}', 1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">+</button>
+                    <button onclick="updateStockItem('toppings', '${topName}', -1)" style="${btnStyle}">-</button>
+                    <input type="number" value="${val}" onchange="setStockItem('toppings', '${topName}', this.value)" style="${inputStyle}">
+                    <button onclick="updateStockItem('toppings', '${topName}', 1)" style="${btnStyle}">+</button>
                 </div>
             `;
             toppingStockContainer.appendChild(row);
@@ -363,7 +387,7 @@ const renderStockManagementUI = () => {
 };
 
 /**
- * Functions Update Stok
+ * Functions Update Stok Manual Dari Input Kasir
  */
 window.updateStockItem = (type, itemKey, delta) => {
     const currentVal = currentStock[type][itemKey] !== undefined ? currentStock[type][itemKey] : 0;
@@ -384,15 +408,58 @@ window.setStockItem = (type, itemKey, newVal) => {
 };
 
 /**
- * Konfirmasi Lunas & Complete Order
+ * Pemotongan Stok Produk di Database Saat Pesanan Dikonfirmasi Lunas
+ */
+const deductStockForOrder = (items) => {
+    if (!items || !Array.isArray(items)) return;
+
+    items.forEach(item => {
+        const qty = item.qty || 1;
+        const rawBase = item.base || item.name || item.title;
+
+        if (rawBase) {
+            const matchedBase = baseList.find(b => b.toLowerCase().trim() === rawBase.toLowerCase().trim()) || rawBase;
+            if (currentStock.bases && currentStock.bases[matchedBase] !== undefined) {
+                currentStock.bases[matchedBase] = Math.max(0, currentStock.bases[matchedBase] - qty);
+            }
+        }
+
+        if (item.toppings && Array.isArray(item.toppings)) {
+            item.toppings.forEach(top => {
+                const matchedTop = toppingList.find(t => t.toLowerCase().trim() === top.toLowerCase().trim()) || top;
+                if (currentStock.toppings && currentStock.toppings[matchedTop] !== undefined) {
+                    currentStock.toppings[matchedTop] = Math.max(0, currentStock.toppings[matchedTop] - qty);
+                }
+            });
+        }
+    });
+
+    if (typeof db !== 'undefined') {
+        db.ref('kacau_inventory').set(currentStock);
+    }
+    localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
+    renderStockManagementUI();
+};
+
+/**
+ * Konfirmasi Lunas & Complete Order (LANGSUNG POTONG STOK DI SINI)
  */
 window.confirmPayment = (firebaseKey, orderId) => {
+    const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
+
+    // 1. Potong Stok Otomatis Saat Tombol Konfirmasi Lunas Diklik
+    if (targetOrder && targetOrder.items) {
+        deductStockForOrder(targetOrder.items);
+    }
+
+    // 2. Update Status Pembayaran di Firebase DB
     if (typeof db !== 'undefined' && firebaseKey) {
         db.ref('kacau_orders/' + firebaseKey).update({
             paymentStatus: 'PAID'
         });
     }
 
+    // 3. Update LocalStorage Status
     let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     localOrders = localOrders.map(o => {
         if (o.id === orderId) {
@@ -437,7 +504,7 @@ window.completeOrder = (firebaseKey, orderId) => {
 };
 
 /**
- * Wipe Format Data Handler
+ * Wipe / Format Data Handler
  */
 if (btnFormatData) {
     btnFormatData.addEventListener('click', () => {

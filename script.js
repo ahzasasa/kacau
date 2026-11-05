@@ -71,7 +71,7 @@ if (btnCloseAlert) {
 }
 
 /**
- * Auto Increment Order ID (REQ-001, REQ-002, dst.)
+ * Auto Increment Order ID
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -111,25 +111,35 @@ const updateCartBadge = () => {
 };
 
 /**
- * Hitung Sisa Stok Efektif (Stok Database dikurangi item yang sudah di Keranjang)
+ * Helper untuk Mengambil Stok Database
+ */
+const getStockValue = (categoryObj, targetName) => {
+    if (!categoryObj) return 99;
+    if (categoryObj[targetName] !== undefined) return categoryObj[targetName];
+
+    const targetLower = targetName.toLowerCase().trim();
+    const foundKey = Object.keys(categoryObj).find(k => k.toLowerCase().trim() === targetLower);
+
+    return foundKey !== undefined ? categoryObj[foundKey] : 99;
+};
+
+/**
+ * Hitung Sisa Stok Efektif
  */
 const getAvailableBaseStock = () => {
     if (!currentSelection.base) return 99;
 
-    const dbStock = (inventoryStock.bases && inventoryStock.bases[currentSelection.base] !== undefined)
-        ? inventoryStock.bases[currentSelection.base]
-        : 99;
-
+    const dbStock = getStockValue(inventoryStock.bases, currentSelection.base);
     const cart = getCartData();
     const existingCartQty = cart
-        .filter(item => item.base === currentSelection.base)
+        .filter(item => item.base && item.base.toLowerCase().trim() === currentSelection.base.toLowerCase().trim())
         .reduce((sum, item) => sum + (item.qty || 1), 0);
 
     return Math.max(0, dbStock - existingCartQty);
 };
 
 /**
- * Membuat URL WhatsApp dengan template bukti pembayaran lengkap
+ * URL WhatsApp dengan Template Bukti Pembayaran
  */
 const generateWALink = (payload) => {
     const itemsText = payload.items.map(item => {
@@ -146,14 +156,14 @@ PRODI: ${payload.prodi}
 --- DETAIL PESANAN [${payload.id}] ---
 ${itemsText}
 TOTAL: RP ${formatNumber(payload.total)}
--------------------------------------
+--------------------------------------
 (Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
 
     return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
 };
 
 /**
- * Listener Real-time Stok Pembeli (Disable Kartu Jika Stok <= 0)
+ * Listener Real-time Stok Pembeli
  */
 const initBuyerStockListener = () => {
     const updateBuyerStockUI = (stockData) => {
@@ -163,16 +173,15 @@ const initBuyerStockListener = () => {
             const isBase = card.dataset.type === 'base';
             const category = isBase ? 'bases' : 'toppings';
             const name = card.dataset.name;
-            const dbStockVal = (inventoryStock[category] && inventoryStock[category][name] !== undefined) 
-                ? inventoryStock[category][name] 
-                : 99;
+
+            const dbStockVal = getStockValue(inventoryStock[category], name);
             const selectBtn = card.querySelector('.select-btn');
 
             let effectiveStock = dbStockVal;
             if (isBase) {
                 const cart = getCartData();
                 const existingCartQty = cart
-                    .filter(item => item.base === name)
+                    .filter(item => item.base && item.base.toLowerCase().trim() === name.toLowerCase().trim())
                     .reduce((sum, item) => sum + (item.qty || 1), 0);
                 effectiveStock = Math.max(0, dbStockVal - existingCartQty);
             }
@@ -218,39 +227,6 @@ const initBuyerStockListener = () => {
         const localStock = JSON.parse(localStorage.getItem('kacau_stock'));
         updateBuyerStockUI(localStock);
     }
-};
-
-/**
- * Pengurangan Stok Otomatis di Database Saat Checkout
- */
-const deductInventoryStock = (items) => {
-    if (!items || !Array.isArray(items)) return;
-
-    items.forEach(item => {
-        const qty = item.qty || 1;
-
-        if (item.base) {
-            if (typeof db !== 'undefined') {
-                db.ref(`kacau_inventory/bases/${item.base}`).transaction((current) => Math.max(0, (current || 0) - qty));
-            }
-            if (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) {
-                inventoryStock.bases[item.base] = Math.max(0, inventoryStock.bases[item.base] - qty);
-            }
-        }
-
-        if (item.toppings && Array.isArray(item.toppings)) {
-            item.toppings.forEach(top => {
-                if (typeof db !== 'undefined') {
-                    db.ref(`kacau_inventory/toppings/${top}`).transaction((current) => Math.max(0, (current || 0) - qty));
-                }
-                if (inventoryStock.toppings && inventoryStock.toppings[top] !== undefined) {
-                    inventoryStock.toppings[top] = Math.max(0, inventoryStock.toppings[top] - qty);
-                }
-            });
-        }
-    });
-
-    localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
 };
 
 /**
@@ -333,7 +309,7 @@ const handleCardSelection = (card, selectBtn, type, name, price) => {
                 selectBtn.classList.add('active-state');
                 selectBtn.textContent = 'TERPILIH';
             }
-            
+
             const maxStock = getAvailableBaseStock();
             if (maxStock <= 0) {
                 showCustomAlert(`Stok ${name} sudah habis atau ada di keranjang kamu.`);
@@ -408,7 +384,7 @@ if (qtyMinusBtn) {
     };
 }
 
-// Kontrol Kuantitas (+) dengan Pembatasan Stok Efektif
+// Kontrol Kuantitas (+)
 if (qtyPlusBtn) {
     qtyPlusBtn.onclick = () => {
         if (!validateBaseSelected()) return;
@@ -425,7 +401,7 @@ if (qtyPlusBtn) {
     };
 }
 
-// Input Kuantitas Manual dengan Pembatasan Stok Efektif
+// Input Kuantitas Manual
 if (qtyValEl) {
     qtyValEl.onfocus = () => {
         if (!currentSelection.base) {
@@ -470,7 +446,7 @@ if (qtyValEl) {
     };
 }
 
-// Tombol Tambah ke Keranjang
+// Tambah ke Keranjang
 if (addToCartBtn) {
     addToCartBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
@@ -510,7 +486,7 @@ if (addToCartBtn) {
     });
 }
 
-// Tombol Checkout Langsung
+// Buka Modal Checkout
 if (checkoutBtn) {
     checkoutBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
@@ -587,7 +563,7 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
 };
 
 /**
- * Konfirmasi Pembeli (SUDAH BAYAR) -> Kirim ke Firebase, Potong Stok, Set Link WA & Tunggu Konfirmasi Kasir
+ * Konfirmasi Pembeli (SUDAH BAYAR)
  */
 if (confirmPayBtn) {
     confirmPayBtn.addEventListener('click', async () => {
@@ -607,9 +583,6 @@ if (confirmPayBtn) {
             return;
         }
 
-        // Potong Stok Produk di Database
-        deductInventoryStock([directCheckoutCup]);
-
         const orderId = getNextOrderId();
         const now = new Date();
         const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -626,18 +599,18 @@ if (confirmPayBtn) {
             paymentStatus: 'UNPAID'
         };
 
-        // Update Link WhatsApp dengan template pesan khusus
+        // Update Link WhatsApp Kasir
         if (waConfirmLink) {
             waConfirmLink.href = generateWALink(payload);
         }
 
-        // Simpan transaksi awal ke LocalStorage
+        // Simpan Transaksi Lokal
         let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
         localOrders.push(payload);
         localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        // Ubah Modal ke Step 2 (Menunggu Konfirmasi Kasir)
+        // Pindah Tampilan ke Step 2 (Menunggu Kasir)
         if (stepInput) stepInput.style.display = 'none';
         if (stepWaiting) stepWaiting.style.display = 'block';
         if (waitingOrderId) waitingOrderId.textContent = orderId;
@@ -647,7 +620,7 @@ if (confirmPayBtn) {
             waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
         }
 
-        // Push ke Firebase DB & Listen Konfirmasi Penjual
+        // Simpan ke Firebase Database & Jalankan Real-time Listener Konfirmasi Kasir
         if (typeof db !== 'undefined') {
             const newRef = db.ref('kacau_orders').push();
             payload.firebaseKey = newRef.key;

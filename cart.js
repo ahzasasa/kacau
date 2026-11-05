@@ -4,6 +4,9 @@ const SELLER_WA_NUMBER = "6281233209503";
 let activeCartListenerRef = null;
 let inventoryStock = { bases: {}, toppings: {} };
 
+/**
+ * Format Angka ke Rupiah
+ */
 const formatNumber = (num) => {
     const val = parseInt(num) || 0;
     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -11,6 +14,19 @@ const formatNumber = (num) => {
 
 const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
 const saveCartData = (cart) => localStorage.setItem('kacau_cart', JSON.stringify(cart));
+
+/**
+ * Helper untuk Mengambil Stok Database
+ */
+const getStockValue = (categoryObj, targetName) => {
+    if (!categoryObj) return 99;
+    if (categoryObj[targetName] !== undefined) return categoryObj[targetName];
+
+    const targetLower = targetName.toLowerCase().trim();
+    const foundKey = Object.keys(categoryObj).find(k => k.toLowerCase().trim() === targetLower);
+
+    return foundKey !== undefined ? categoryObj[foundKey] : 99;
+};
 
 /**
  * Listener Stok Real-time di Halaman Keranjang
@@ -31,39 +47,6 @@ const initCartStockListener = () => {
 };
 
 /**
- * Pemotongan Stok Database dari Keranjang
- */
-const deductInventoryStock = (items) => {
-    if (!items || !Array.isArray(items)) return;
-
-    items.forEach(item => {
-        const qty = item.qty || 1;
-
-        if (item.base) {
-            if (typeof db !== 'undefined') {
-                db.ref(`kacau_inventory/bases/${item.base}`).transaction((current) => Math.max(0, (current || 0) - qty));
-            }
-            if (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) {
-                inventoryStock.bases[item.base] = Math.max(0, inventoryStock.bases[item.base] - qty);
-            }
-        }
-
-        if (item.toppings && Array.isArray(item.toppings)) {
-            item.toppings.forEach(top => {
-                if (typeof db !== 'undefined') {
-                    db.ref(`kacau_inventory/toppings/${top}`).transaction((current) => Math.max(0, (current || 0) - qty));
-                }
-                if (inventoryStock.toppings && inventoryStock.toppings[top] !== undefined) {
-                    inventoryStock.toppings[top] = Math.max(0, inventoryStock.toppings[top] - qty);
-                }
-            });
-        }
-    });
-
-    localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
-};
-
-/**
  * Generator Pesan WhatsApp Format Lengkap
  */
 const generateWALink = (payload) => {
@@ -81,12 +64,15 @@ PRODI: ${payload.prodi}
 --- DETAIL PESANAN [${payload.id}] ---
 ${itemsText}
 TOTAL: RP ${formatNumber(payload.total)}
--------------------------------------
+--------------------------------------
 (Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
 
     return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
 };
 
+/**
+ * Auto Increment Order ID
+ */
 const getNextOrderId = () => {
     let maxNum = 0;
     const localActive = JSON.parse(localStorage.getItem('kacau_orders')) || [];
@@ -109,6 +95,9 @@ const getNextOrderId = () => {
     return `REQ-${String(nextNum).padStart(3, '0')}`;
 };
 
+/**
+ * Update Total Kuantitas dan Harga di Bottom Bar Keranjang
+ */
 const updateCartTotals = () => {
     const cart = getCartData();
     const checkedCountEl = document.getElementById('checked-count');
@@ -130,6 +119,9 @@ const updateCartTotals = () => {
     }
 };
 
+/**
+ * Render Daftar Item Keranjang
+ */
 const renderCart = () => {
     const cartContainer = document.getElementById('cart-items-container');
     if (!cartContainer) return;
@@ -183,6 +175,9 @@ const renderCart = () => {
     updateCartTotals();
 };
 
+/**
+ * Event Listeners untuk Interaksi Item Keranjang
+ */
 const attachCartEventListeners = () => {
     let cart = getCartData();
 
@@ -211,9 +206,7 @@ const attachCartEventListeners = () => {
         btn.onclick = (e) => {
             const idx = e.target.dataset.index;
             const item = cart[idx];
-            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
-                ? inventoryStock.bases[item.base] 
-                : 99;
+            const maxStock = getStockValue(inventoryStock.bases, item.base);
 
             if (item.qty >= maxStock) {
                 alert(`Stok ${item.base} tinggal ${maxStock} porsi!`);
@@ -235,9 +228,7 @@ const attachCartEventListeners = () => {
             let val = parseInt(e.target.value);
             if (isNaN(val) || val < 1) val = 1;
 
-            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
-                ? inventoryStock.bases[item.base] 
-                : 99;
+            const maxStock = getStockValue(inventoryStock.bases, item.base);
 
             if (val > maxStock) {
                 val = maxStock;
@@ -289,13 +280,16 @@ if (deleteSelectedBtn) {
     };
 }
 
-// DOM Elements Modal
+// Element Modal QRIS
 const cartCheckoutBtn = document.getElementById('cart-checkout-btn');
 const cartQrisModal = document.getElementById('cart-qris-modal') || document.getElementById('qris-modal');
 const modalPayTotal = document.getElementById('modal-pay-total') || document.getElementById('cart-modal-pay-total');
 const closeQrisBtn = document.getElementById('close-qris-btn') || document.getElementById('cart-close-qris-btn');
 const confirmPayBtn = document.getElementById('confirm-pay-btn') || document.getElementById('cart-confirm-pay-btn');
 
+/**
+ * Listener Real-time Konfirmasi Pembayaran Kasir via Firebase
+ */
 const listenForSellerConfirmation = (firebaseNodeKey) => {
     if (typeof db === 'undefined') return;
 
@@ -327,7 +321,9 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
     });
 };
 
-// Checkout dari Keranjang + Pengecekan Stok
+/**
+ * Buka Modal Checkout Keranjang & Check Stok Porsi
+ */
 if (cartCheckoutBtn) {
     cartCheckoutBtn.onclick = () => {
         const cart = getCartData();
@@ -340,10 +336,7 @@ if (cartCheckoutBtn) {
 
         // Pengecekan Stok Sebelum Buka Modal
         for (let item of selectedItems) {
-            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
-                ? inventoryStock.bases[item.base] 
-                : 99;
-
+            const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
                 alert(`Pesanan ${item.base} berjumlah ${item.qty} melebihi sisa stok (${maxStock}). Kurangi jumlahnya dulu ya!`);
                 return;
@@ -379,7 +372,9 @@ if (closeQrisBtn) {
     };
 }
 
-// SUDAH BAYAR di Halaman Keranjang
+/**
+ * Tombol SUDAH BAYAR di Halaman Keranjang
+ */
 if (confirmPayBtn) {
     confirmPayBtn.onclick = async () => {
         const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
@@ -399,20 +394,14 @@ if (confirmPayBtn) {
 
         if (selectedItems.length === 0) return;
 
-        // Validation ulang stok sebelum potong
+        // Pengecekan ulang stok
         for (let item of selectedItems) {
-            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
-                ? inventoryStock.bases[item.base] 
-                : 99;
-
+            const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
                 alert(`Stok ${item.base} tidak mencukupi (sisa ${maxStock}). Mohon sesuaikan pesanan.`);
                 return;
             }
         }
-
-        // POTONG STOK DI DATABASE SEKARANG
-        deductInventoryStock(selectedItems);
 
         const totalToPay = selectedItems.reduce((sum, item) => {
             const qty = item.qty || 1;
@@ -435,7 +424,7 @@ if (confirmPayBtn) {
             paymentStatus: 'UNPAID'
         };
 
-        // Update Link WhatsApp Kasir dengan template pesan khusus
+        // Update Link WhatsApp Kasir dengan Template Pesan Lengkap
         const waConfirmLink = document.getElementById('wa-confirm-link');
         if (waConfirmLink) {
             waConfirmLink.href = generateWALink(payload);
@@ -446,7 +435,7 @@ if (confirmPayBtn) {
         localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        // Hapus barang yang dibayar dari keranjang
+        // Hapus barang yang dibayar dari keranjang lokal
         saveCartData(remainingItems);
         renderCart();
 
@@ -464,6 +453,7 @@ if (confirmPayBtn) {
             waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
         }
 
+        // Simpan ke Firebase DB & Listen Konfirmasi Penjual
         if (typeof db !== 'undefined') {
             const newRef = db.ref('kacau_orders').push();
             payload.firebaseKey = newRef.key;
@@ -476,5 +466,6 @@ if (confirmPayBtn) {
     };
 }
 
+// Inisialisasi awal
 initCartStockListener();
 renderCart();
