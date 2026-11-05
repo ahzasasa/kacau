@@ -1,4 +1,9 @@
-// Nomor WhatsApp Penjual
+/**
+ * KACAU (Statistika Cincau) - Customer Catalog Logic (script.js)
+ * Integrated with Real-Time Stock Validation, Dynamic WhatsApp Link & Pure Database Stock Checking
+ */
+
+// Nomor WhatsApp Penjual (Sesuaikan dengan nomor HP Kasir Stand)
 const SELLER_WA_NUMBER = "6281233209503";
 
 // State Pilihan Menu Utama
@@ -71,7 +76,7 @@ if (btnCloseAlert) {
 }
 
 /**
- * Auto Increment Order ID
+ * Auto Increment Order ID (REQ-001, REQ-002, dst.)
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -111,7 +116,7 @@ const updateCartBadge = () => {
 };
 
 /**
- * Helper untuk Mengambil Stok Database
+ * Helper untuk Mengambil Stok Database (Case-Insensitive & Anti-Typo)
  */
 const getStockValue = (categoryObj, targetName) => {
     if (!categoryObj) return 99;
@@ -124,22 +129,15 @@ const getStockValue = (categoryObj, targetName) => {
 };
 
 /**
- * Hitung Sisa Stok Efektif
+ * Hitung Sisa Stok Murni dari Database Kasir
  */
 const getAvailableBaseStock = () => {
     if (!currentSelection.base) return 99;
-
-    const dbStock = getStockValue(inventoryStock.bases, currentSelection.base);
-    const cart = getCartData();
-    const existingCartQty = cart
-        .filter(item => item.base && item.base.toLowerCase().trim() === currentSelection.base.toLowerCase().trim())
-        .reduce((sum, item) => sum + (item.qty || 1), 0);
-
-    return Math.max(0, dbStock - existingCartQty);
+    return getStockValue(inventoryStock.bases, currentSelection.base);
 };
 
 /**
- * URL WhatsApp dengan Template Bukti Pembayaran
+ * Membuat URL WhatsApp dengan Template Bukti Pembayaran Dinamis
  */
 const generateWALink = (payload) => {
     const itemsText = payload.items.map(item => {
@@ -156,14 +154,14 @@ PRODI: ${payload.prodi}
 --- DETAIL PESANAN [${payload.id}] ---
 ${itemsText}
 TOTAL: RP ${formatNumber(payload.total)}
---------------------------------------
+-------------------------------------
 (Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
 
     return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
 };
 
 /**
- * Listener Real-time Stok Pembeli
+ * Listener Real-time Stok Pembeli (Murni berdasarkan Stok Database Kasir)
  */
 const initBuyerStockListener = () => {
     const updateBuyerStockUI = (stockData) => {
@@ -177,16 +175,7 @@ const initBuyerStockListener = () => {
             const dbStockVal = getStockValue(inventoryStock[category], name);
             const selectBtn = card.querySelector('.select-btn');
 
-            let effectiveStock = dbStockVal;
-            if (isBase) {
-                const cart = getCartData();
-                const existingCartQty = cart
-                    .filter(item => item.base && item.base.toLowerCase().trim() === name.toLowerCase().trim())
-                    .reduce((sum, item) => sum + (item.qty || 1), 0);
-                effectiveStock = Math.max(0, dbStockVal - existingCartQty);
-            }
-
-            if (effectiveStock <= 0) {
+            if (dbStockVal <= 0) {
                 card.classList.add('out-of-stock');
                 card.style.opacity = '0.5';
                 card.style.pointerEvents = 'none';
@@ -312,7 +301,7 @@ const handleCardSelection = (card, selectBtn, type, name, price) => {
 
             const maxStock = getAvailableBaseStock();
             if (maxStock <= 0) {
-                showCustomAlert(`Stok ${name} sudah habis atau ada di keranjang kamu.`);
+                showCustomAlert(`Stok ${name} sedang habis.`);
                 resetSelection();
                 return;
             }
@@ -599,7 +588,7 @@ if (confirmPayBtn) {
             paymentStatus: 'UNPAID'
         };
 
-        // Update Link WhatsApp Kasir
+        // Update Link WhatsApp Kasir secara Dinamis
         if (waConfirmLink) {
             waConfirmLink.href = generateWALink(payload);
         }
