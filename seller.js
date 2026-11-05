@@ -13,12 +13,23 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// List Produk
-const baseList = ["Original", "Strawberry", "Blueberry", "Mangga", "Jambu", "Leci", "Chocolate", "Melon", "Sirsak", "Anggur"];
-const toppingList = ["Cereal Choco Chips", "Cereal Froot Loops", "Keju Parut", "Messes", "Cookies"];
+// List Produk Default
+const baseList = ["Original", "Blueberry", "Grape", "Guava", "Mango", "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate", ];
+const toppingList = ["Cereal Choco Chips", "Cereal Froot Loops", "Cheese", "Chocolate Sprinkles", "Cookie Crumble"];
+
+const defaultStock = {
+    bases: {
+        "Original": 0, "Strawberry": 0, "Blueberry": 0, "Mangga": 20,
+        "Jambu": 0, "Leci": 0, "Chocolate": 0, "Melon": 0, "Sirsak": 0, "Anggur": 0
+    },
+    toppings: {
+        "Cereal Choco Chips": 0, "Cereal Froot Loops": 0, "Cheese": 0, "Chocolate Sprinkles": 0, "Cookie Crumble": 0
+    }
+};
 
 let activeOrdersList = [];
 let completedOrdersList = [];
+let currentStock = JSON.parse(JSON.stringify(defaultStock));
 
 /**
  * Format Angka ke Rupiah
@@ -44,17 +55,20 @@ if (tabOrdersBtn && tabRekapBtn) {
         tabOrdersBtn.classList.remove('active');
         if (tabRekapContent) tabRekapContent.style.display = 'block';
         if (tabOrdersContent) tabOrdersContent.style.display = 'none';
+
         renderRekapStats();
+        renderStockManagementUI();
     });
 }
 
 /**
- * Load & Real-time Listener Data
+ * Inisialisasi Database (Orders & Stock)
  */
 const initSellerDatabaseListeners = () => {
     const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
 
     if (typeof db !== 'undefined') {
+        // Listener Pesanan Masuk
         db.ref('kacau_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             activeOrdersList = [];
@@ -84,6 +98,7 @@ const initSellerDatabaseListeners = () => {
             renderSellerDashboard();
         });
 
+        // Listener Pesanan Selesai
         db.ref('kacau_completed_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             completedOrdersList = [];
@@ -96,7 +111,21 @@ const initSellerDatabaseListeners = () => {
 
             renderRekapStats();
         });
+
+        // Listener Stok Produk
+        db.ref('kacau_inventory').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.bases && data.toppings) {
+                currentStock = data;
+            } else {
+                db.ref('kacau_inventory').set(defaultStock);
+                currentStock = JSON.parse(JSON.stringify(defaultStock));
+            }
+            localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
+            renderStockManagementUI();
+        });
     } else {
+        // LocalStorage Fallback
         activeOrdersList = localOrders;
         activeOrdersList.sort((a, b) => {
             const numA = parseInt((a.id || '').replace('REQ-', '')) || 0;
@@ -105,13 +134,23 @@ const initSellerDatabaseListeners = () => {
         });
 
         completedOrdersList = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
+        
+        const localStock = JSON.parse(localStorage.getItem('kacau_stock'));
+        if (localStock && localStock.bases && localStock.toppings) {
+            currentStock = localStock;
+        } else {
+            currentStock = JSON.parse(JSON.stringify(defaultStock));
+            localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
+        }
+
         renderSellerDashboard();
         renderRekapStats();
+        renderStockManagementUI();
     }
 };
 
 /**
- * Antrean Pesanan Aktif di Daftar Pesanan
+ * Render Antrean Pesanan Aktif
  */
 const renderSellerDashboard = () => {
     if (!questLogContainer) return;
@@ -147,13 +186,29 @@ const renderSellerDashboard = () => {
         }
 
         const firebaseKey = order.key || '';
+        const isPaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'LUNAS';
+
+        const statusBadgeHtml = isPaid
+            ? `<span style="background: #27ae60; color: #fff; padding: 3px 6px; font-size: 0.5rem; border: 2px solid var(--c-purple); font-weight: bold;">[LUNAS]</span>`
+            : `<span style="background: #e74c3c; color: #fff; padding: 3px 6px; font-size: 0.5rem; border: 2px solid var(--c-purple); font-weight: bold;">[BELUM BAYAR]</span>`;
+
+        const confirmPayBtnHtml = !isPaid
+            ? `<button class="btn" onclick="confirmPayment('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 6px 10px; cursor: pointer; background: #27ae60; color: #fff;">KONFIRMASI LUNAS</button>`
+            : '';
 
         card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                <div style="background: var(--c-purple); color: var(--c-yellow); padding: 5px 8px; font-size: 0.65rem; font-weight: bold;">
-                    [${order.id || 'REQ-001'}]
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="background: var(--c-purple); color: var(--c-yellow); padding: 5px 8px; font-size: 0.65rem; font-weight: bold;">
+                        [${order.id || 'REQ-001'}]
+                    </div>
+                    ${statusBadgeHtml}
                 </div>
-                <button class="btn btn-invert" onclick="completeOrder('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 8px 14px; cursor: pointer;">DONE</button>
+
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    ${confirmPayBtnHtml}
+                    <button class="btn btn-invert" onclick="completeOrder('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 6px 12px; cursor: pointer;">DONE</button>
+                </div>
             </div>
             
             <div style="font-size: 0.75rem; font-weight: bold; color: var(--c-purple); margin-bottom: 10px;">
@@ -172,7 +227,7 @@ const renderSellerDashboard = () => {
 };
 
 /**
- * Analytics & Rekap Penjualan
+ * Render Grafik & Rekap Stats
  */
 const renderRekapStats = () => {
     const totalOmzet = completedOrdersList.reduce((sum, o) => sum + (parseInt(o.total) || 0), 0);
@@ -206,7 +261,6 @@ const renderRekapStats = () => {
     const maxBaseCount = Math.max(...Object.values(baseCounts), 1);
     const maxToppingCount = Math.max(...Object.values(toppingCounts), 1);
 
-    // Sorting Base Varian
     const sortedBases = Object.keys(baseCounts).sort((a, b) => {
         const countDiff = baseCounts[b] - baseCounts[a];
         if (countDiff !== 0) return countDiff;
@@ -234,7 +288,6 @@ const renderRekapStats = () => {
         });
     }
 
-    // Sorting Topping
     const sortedToppings = Object.keys(toppingCounts).sort((a, b) => {
         const countDiff = toppingCounts[b] - toppingCounts[a];
         if (countDiff !== 0) return countDiff;
@@ -263,22 +316,110 @@ const renderRekapStats = () => {
 };
 
 /**
- * Menyelesaikan Pesanan
+ * Render Input Controls Manajemen Stok
  */
+const renderStockManagementUI = () => {
+    const baseStockContainer = document.getElementById('seller-base-stock-list');
+    const toppingStockContainer = document.getElementById('seller-topping-stock-list');
+
+    if (!currentStock.bases) currentStock.bases = { ...defaultStock.bases };
+    if (!currentStock.toppings) currentStock.toppings = { ...defaultStock.toppings };
+
+    if (baseStockContainer) {
+        baseStockContainer.innerHTML = '';
+        baseList.forEach(baseName => {
+            const val = currentStock.bases[baseName] !== undefined ? currentStock.bases[baseName] : 20;
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple);';
+            row.innerHTML = `
+                <span style="font-weight: bold; color: var(--c-purple);">${baseName}</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button onclick="updateStockItem('bases', '${baseName}', -1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">-</button>
+                    <input type="number" value="${val}" onchange="setStockItem('bases', '${baseName}', this.value)" style="width: 45px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 2px;">
+                    <button onclick="updateStockItem('bases', '${baseName}', 1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">+</button>
+                </div>
+            `;
+            baseStockContainer.appendChild(row);
+        });
+    }
+
+    if (toppingStockContainer) {
+        toppingStockContainer.innerHTML = '';
+        toppingList.forEach(topName => {
+            const val = currentStock.toppings[topName] !== undefined ? currentStock.toppings[topName] : 30;
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple);';
+            row.innerHTML = `
+                <span style="font-weight: bold; color: var(--c-purple);">${topName}</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button onclick="updateStockItem('toppings', '${topName}', -1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">-</button>
+                    <input type="number" value="${val}" onchange="setStockItem('toppings', '${topName}', this.value)" style="width: 45px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 2px;">
+                    <button onclick="updateStockItem('toppings', '${topName}', 1)" style="background: var(--c-purple); color: var(--c-yellow); border: none; padding: 4px 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">+</button>
+                </div>
+            `;
+            toppingStockContainer.appendChild(row);
+        });
+    }
+};
+
+/**
+ * Functions Update Stok
+ */
+window.updateStockItem = (type, itemKey, delta) => {
+    const currentVal = currentStock[type][itemKey] !== undefined ? currentStock[type][itemKey] : 0;
+    const newVal = Math.max(0, currentVal + delta);
+    setStockItem(type, itemKey, newVal);
+};
+
+window.setStockItem = (type, itemKey, newVal) => {
+    const val = Math.max(0, parseInt(newVal) || 0);
+    if (!currentStock[type]) currentStock[type] = {};
+    currentStock[type][itemKey] = val;
+
+    if (typeof db !== 'undefined') {
+        db.ref(`kacau_inventory/${type}/${itemKey}`).set(val);
+    }
+    localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
+    renderStockManagementUI();
+};
+
+/**
+ * Konfirmasi Lunas & Complete Order
+ */
+window.confirmPayment = (firebaseKey, orderId) => {
+    if (typeof db !== 'undefined' && firebaseKey) {
+        db.ref('kacau_orders/' + firebaseKey).update({
+            paymentStatus: 'PAID'
+        });
+    }
+
+    let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+    localOrders = localOrders.map(o => {
+        if (o.id === orderId) {
+            return { ...o, paymentStatus: 'PAID' };
+        }
+        return o;
+    });
+    localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
+
+    if (typeof db === 'undefined') {
+        activeOrdersList = localOrders;
+        renderSellerDashboard();
+    }
+};
+
 window.completeOrder = (firebaseKey, orderId) => {
     const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
     if (!targetOrder) return;
 
-    const orderData = { ...targetOrder };
+    const orderData = { ...targetOrder, paymentStatus: 'PAID' };
     delete orderData.key;
 
-    // 1. Update Firebase
     if (typeof db !== 'undefined' && firebaseKey) {
         db.ref('kacau_completed_orders').push(orderData);
         db.ref('kacau_orders/' + firebaseKey).remove();
     }
 
-    // 2. Fallback update LocalStorage
     let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     localOrders = localOrders.filter(o => o.id !== orderId);
     localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
@@ -296,7 +437,7 @@ window.completeOrder = (firebaseKey, orderId) => {
 };
 
 /**
- * Modal Confirm & Wipe Database Handler
+ * Wipe Format Data Handler
  */
 if (btnFormatData) {
     btnFormatData.addEventListener('click', () => {
@@ -321,16 +462,20 @@ if (actionConfirmBtn) {
         if (typeof db !== 'undefined') {
             db.ref('kacau_orders').remove();
             db.ref('kacau_completed_orders').remove();
+            db.ref('kacau_inventory').set(defaultStock);
         }
         localStorage.removeItem('kacau_orders');
         localStorage.removeItem('kacau_completed_orders');
         localStorage.removeItem('kacau_order_counter');
+        localStorage.setItem('kacau_stock', JSON.stringify(defaultStock));
         
         activeOrdersList = [];
         completedOrdersList = [];
+        currentStock = JSON.parse(JSON.stringify(defaultStock));
 
         renderSellerDashboard();
         renderRekapStats();
+        renderStockManagementUI();
 
         if (confirmModal) {
             confirmModal.classList.add('hidden');
@@ -339,4 +484,5 @@ if (actionConfirmBtn) {
     });
 }
 
+// Inisialisasi Utama
 initSellerDatabaseListeners();

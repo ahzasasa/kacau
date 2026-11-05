@@ -1,4 +1,4 @@
-/* GLOBAL VARIABLES & RESET */
+/* VARIABLES */
 :root {
     --c-purple: #450c3f;
     --c-green-dark: #b9d175;
@@ -896,4 +896,11 @@ body {
 .cart-qty-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+#buyer-name:focus,
+.modal-content input:focus {
+    outline: none !important;
+    border-color: var(--c-purple) !important;
+    box-shadow: 0 0 0 2px var(--c-purple) !important;
 }

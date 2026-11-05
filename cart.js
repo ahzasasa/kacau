@@ -1,33 +1,99 @@
 /**
  * KACAU (Statistika Cincau) - Cart Logic (cart.js)
+ * Static QRIS + Real-time Inventory Validation & Seller Manual Confirmation Listener
  */
+
+let activeCartListenerRef = null;
+let inventoryStock = { bases: {}, toppings: {} };
 
 const formatNumber = (num) => {
     const val = parseInt(num) || 0;
     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
-const getCartData = () => {
-    return JSON.parse(localStorage.getItem('kacau_cart')) || [];
-};
+const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
+const saveCartData = (cart) => localStorage.setItem('kacau_cart', JSON.stringify(cart));
 
-const saveCartData = (cart) => {
-    localStorage.setItem('kacau_cart', JSON.stringify(cart));
+/**
+ * Listener Stok Real-time di Halaman Keranjang
+ */
+const initCartStockListener = () => {
+    const updateStockData = (stockData) => {
+        inventoryStock = stockData || { bases: {}, toppings: {} };
+    };
+
+    if (typeof db !== 'undefined') {
+        db.ref('kacau_inventory').on('value', (snapshot) => {
+            updateStockData(snapshot.val());
+        });
+    } else {
+        const localStock = JSON.parse(localStorage.getItem('kacau_stock'));
+        updateStockData(localStock);
+    }
 };
 
 /**
- * Update Total Harga & Sinkronkan Checkbox PILIH SEMUA
+ * Pemotongan Stok Database dari Keranjang
  */
+const deductInventoryStock = (items) => {
+    if (!items || !Array.isArray(items)) return;
+
+    items.forEach(item => {
+        const qty = item.qty || 1;
+
+        if (item.base) {
+            if (typeof db !== 'undefined') {
+                db.ref(`kacau_inventory/bases/${item.base}`).transaction((current) => Math.max(0, (current || 0) - qty));
+            }
+            if (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) {
+                inventoryStock.bases[item.base] = Math.max(0, inventoryStock.bases[item.base] - qty);
+            }
+        }
+
+        if (item.toppings && Array.isArray(item.toppings)) {
+            item.toppings.forEach(top => {
+                if (typeof db !== 'undefined') {
+                    db.ref(`kacau_inventory/toppings/${top}`).transaction((current) => Math.max(0, (current || 0) - qty));
+                }
+                if (inventoryStock.toppings && inventoryStock.toppings[top] !== undefined) {
+                    inventoryStock.toppings[top] = Math.max(0, inventoryStock.toppings[top] - qty);
+                }
+            });
+        }
+    });
+
+    localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
+};
+
+const getNextOrderId = () => {
+    let maxNum = 0;
+    const localActive = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+    const localCompleted = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
+    const allOrders = [...localActive, ...localCompleted];
+
+    allOrders.forEach(ord => {
+        if (ord && ord.id) {
+            const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
+            if (num > maxNum) maxNum = num;
+        }
+    });
+
+    const lastCounter = parseInt(localStorage.getItem('kacau_order_counter'), 10) || 0;
+    if (lastCounter > maxNum) maxNum = lastCounter;
+
+    const nextNum = maxNum + 1;
+    localStorage.setItem('kacau_order_counter', nextNum);
+
+    return `REQ-${String(nextNum).padStart(3, '0')}`;
+};
+
 const updateCartTotals = () => {
     const cart = getCartData();
     const checkedCountEl = document.getElementById('checked-count');
     const grandTotalEl = document.getElementById('cart-grand-total');
     const selectAllCb = document.getElementById('select-all-checkbox');
 
-    // Filter item yang dicentang
     const checkedItems = cart.filter(item => item.checked !== false);
-
-    // Hitung total item & total harga
     const totalQty = checkedItems.reduce((sum, item) => sum + (parseInt(item.qty) || 1), 0);
     const totalPrice = checkedItems.reduce((sum, item) => {
         const itemTotal = parseInt(item.total) || ((parseInt(item.unitPrice) || 5000) * (parseInt(item.qty) || 1));
@@ -37,15 +103,11 @@ const updateCartTotals = () => {
     if (checkedCountEl) checkedCountEl.textContent = totalQty;
     if (grandTotalEl) grandTotalEl.textContent = formatNumber(totalPrice);
 
-    // Otomatis centang PILIH SEMUA jika semua item di keranjang tercentang
     if (selectAllCb) {
         selectAllCb.checked = cart.length > 0 && checkedItems.length === cart.length;
     }
 };
 
-/**
- * Render Daftar Item Keranjang
- */
 const renderCart = () => {
     const cartContainer = document.getElementById('cart-items-container');
     if (!cartContainer) return;
@@ -86,16 +148,12 @@ const renderCart = () => {
             <div style="display: flex; align-items: center; gap: 8px;">
                 <div style="display: inline-flex; align-items: center; background: var(--c-purple); border: 2px solid var(--c-purple); height: 28px; padding: 0;">
                     <button class="cart-qty-btn cart-qty-minus" data-index="${index}" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.65rem; width: 24px; height: 100%; cursor: pointer;">-</button>
-
                     <input type="number" class="cart-qty-input" data-index="${index}" value="${currentQty}" min="1" autocomplete="off">
-
                     <button class="cart-qty-btn cart-qty-plus" data-index="${index}" style="background: var(--c-purple); color: var(--c-yellow); border: none; font-family: 'Press Start 2P', cursive; font-size: 0.65rem; width: 24px; height: 100%; cursor: pointer;">+</button>
                 </div>
-
                 <button class="cart-delete-btn" data-index="${index}" style="background: none; border: none; color: #c0392b; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; cursor: pointer;">[HAPUS]</button>
             </div>
         `;
-
         cartContainer.appendChild(itemCard);
     });
 
@@ -103,13 +161,9 @@ const renderCart = () => {
     updateCartTotals();
 };
 
-/**
- * Event Listener Item di Cart
- */
 const attachCartEventListeners = () => {
     let cart = getCartData();
 
-    // 1. Checkbox Per Item
     document.querySelectorAll('.cart-item-checkbox').forEach(cb => {
         cb.onchange = (e) => {
             const idx = e.target.dataset.index;
@@ -119,7 +173,6 @@ const attachCartEventListeners = () => {
         };
     });
 
-    // 2. Tombol Minus (-)
     document.querySelectorAll('.cart-qty-minus').forEach(btn => {
         btn.onclick = (e) => {
             const idx = e.target.dataset.index;
@@ -132,29 +185,41 @@ const attachCartEventListeners = () => {
         };
     });
 
-    // 3. Tombol Plus (+)
     document.querySelectorAll('.cart-qty-plus').forEach(btn => {
         btn.onclick = (e) => {
             const idx = e.target.dataset.index;
-            cart[idx].qty = (cart[idx].qty || 1) + 1;
+            const item = cart[idx];
+            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
+                ? inventoryStock.bases[item.base] 
+                : 99;
+
+            if (item.qty >= maxStock) {
+                alert(`Stok ${item.base} tinggal ${maxStock} porsi!`);
+                return;
+            }
+
+            cart[idx].qty++;
             cart[idx].total = (cart[idx].unitPrice || 5000) * cart[idx].qty;
             saveCartData(cart);
             renderCart();
         };
     });
 
-    // 4. Input Ketik Kuantitas
     document.querySelectorAll('.cart-qty-input').forEach(input => {
-        input.onfocus = (e) => {
-            e.target.select();
-        };
-
+        input.onfocus = (e) => { e.target.select(); };
         input.oninput = (e) => {
             const idx = e.target.dataset.index;
+            const item = cart[idx];
             let val = parseInt(e.target.value);
+            if (isNaN(val) || val < 1) val = 1;
 
-            if (isNaN(val) || val < 1) {
-                val = 1;
+            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
+                ? inventoryStock.bases[item.base] 
+                : 99;
+
+            if (val > maxStock) {
+                val = maxStock;
+                alert(`Stok ${item.base} cuma sisa ${maxStock} porsi!`);
             }
 
             cart[idx].qty = val;
@@ -162,7 +227,6 @@ const attachCartEventListeners = () => {
             saveCartData(cart);
             updateCartTotals();
         };
-
         input.onblur = (e) => {
             const idx = e.target.dataset.index;
             if (e.target.value === '' || parseInt(e.target.value) < 1) {
@@ -172,7 +236,6 @@ const attachCartEventListeners = () => {
         };
     });
 
-    // 5. Tombol Hapus Single Item
     document.querySelectorAll('.cart-delete-btn').forEach(btn => {
         btn.onclick = (e) => {
             const idx = e.target.dataset.index;
@@ -183,7 +246,6 @@ const attachCartEventListeners = () => {
     });
 };
 
-// Checkbox "PILIH SEMUA"
 const selectAllCb = document.getElementById('select-all-checkbox');
 if (selectAllCb) {
     selectAllCb.onchange = (e) => {
@@ -195,7 +257,6 @@ if (selectAllCb) {
     };
 }
 
-// Tombol "HAPUS TERPILIH"
 const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 if (deleteSelectedBtn) {
     deleteSelectedBtn.onclick = () => {
@@ -206,27 +267,45 @@ if (deleteSelectedBtn) {
     };
 }
 
-/**
- * Helper: Generate Order ID (REQ-001, REQ-002, dst.)
- */
-const getNextOrderId = () => {
-    let counter = parseInt(localStorage.getItem('kacau_order_counter')) || 0;
-    counter++;
-    localStorage.setItem('kacau_order_counter', counter);
-    return `REQ-${String(counter).padStart(3, '0')}`;
-};
-
-// DOM Modal QRIS Keranjang
+// DOM Elements Modal
 const cartCheckoutBtn = document.getElementById('cart-checkout-btn');
 const cartQrisModal = document.getElementById('cart-qris-modal') || document.getElementById('qris-modal');
 const modalPayTotal = document.getElementById('modal-pay-total') || document.getElementById('cart-modal-pay-total');
-const buyerNameInput = document.getElementById('buyer-name-input') || document.getElementById('cart-buyer-name-input');
 const closeQrisBtn = document.getElementById('close-qris-btn') || document.getElementById('cart-close-qris-btn');
 const confirmPayBtn = document.getElementById('confirm-pay-btn') || document.getElementById('cart-confirm-pay-btn');
 
-/**
- * 1. KLIK TOMBOL CHECKOUT -> Buka Modal QRIS
- */
+const listenForSellerConfirmation = (firebaseNodeKey) => {
+    if (typeof db === 'undefined') return;
+
+    if (activeCartListenerRef) activeCartListenerRef.off();
+
+    activeCartListenerRef = db.ref(`kacau_orders/${firebaseNodeKey}`);
+    activeCartListenerRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && (data.paymentStatus === 'PAID' || data.paymentStatus === 'LUNAS')) {
+            activeCartListenerRef.off();
+
+            const waitingStatusBadge = document.getElementById('waiting-status-badge');
+            if (waitingStatusBadge) {
+                waitingStatusBadge.style.background = '#27ae60';
+                waitingStatusBadge.style.color = '#fff';
+                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS! 🟢';
+            }
+
+            localStorage.setItem('kacau_latest_order', JSON.stringify(data));
+
+            setTimeout(() => {
+                if (cartQrisModal) {
+                    cartQrisModal.classList.add('hidden');
+                    cartQrisModal.classList.remove('active');
+                }
+                window.location.href = 'receipt.html';
+            }, 1000);
+        }
+    });
+};
+
+// Checkout dari Keranjang + Pengecekan Stok
 if (cartCheckoutBtn) {
     cartCheckoutBtn.onclick = () => {
         const cart = getCartData();
@@ -237,14 +316,29 @@ if (cartCheckoutBtn) {
             return;
         }
 
+        // Pengecekan Stok Sebelum Buka Modal
+        for (let item of selectedItems) {
+            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
+                ? inventoryStock.bases[item.base] 
+                : 99;
+
+            if (item.qty > maxStock) {
+                alert(`Pesanan ${item.base} berjumlah ${item.qty} melebihi sisa stok (${maxStock}). Kurangi jumlahnya dulu ya!`);
+                return;
+            }
+        }
+
         const totalToPay = selectedItems.reduce((sum, item) => {
             const qty = item.qty || 1;
             return sum + (item.total || ((item.unitPrice || 5000) * qty));
         }, 0);
 
-        if (modalPayTotal) {
-            modalPayTotal.textContent = formatNumber(totalToPay);
-        }
+        if (modalPayTotal) modalPayTotal.textContent = formatNumber(totalToPay);
+
+        const stepInput = document.getElementById('modal-step-input');
+        const stepWaiting = document.getElementById('modal-step-waiting');
+        if (stepInput) stepInput.style.display = 'block';
+        if (stepWaiting) stepWaiting.style.display = 'none';
 
         if (cartQrisModal) {
             cartQrisModal.classList.remove('hidden');
@@ -253,11 +347,9 @@ if (cartCheckoutBtn) {
     };
 }
 
-/**
- * 2. TUTUP MODAL QRIS
- */
 if (closeQrisBtn) {
     closeQrisBtn.onclick = () => {
+        if (activeCartListenerRef) activeCartListenerRef.off();
         if (cartQrisModal) {
             cartQrisModal.classList.add('hidden');
             cartQrisModal.classList.remove('active');
@@ -265,12 +357,11 @@ if (closeQrisBtn) {
     };
 }
 
-/**
- * 3. KLIK SELESAI BAYAR -> Push ke Firebase & Redirect Receipt
- */
+// SUDAH BAYAR di Halaman Keranjang
 if (confirmPayBtn) {
-    confirmPayBtn.onclick = () => {
-        const buyerName = buyerNameInput ? buyerNameInput.value.trim() : '';
+    confirmPayBtn.onclick = async () => {
+        const inputEl = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
+        const buyerName = inputEl ? inputEl.value.trim() : '';
 
         if (!buyerName) {
             alert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
@@ -283,57 +374,75 @@ if (confirmPayBtn) {
 
         if (selectedItems.length === 0) return;
 
+        // Validation ulang stok sebelum potong
+        for (let item of selectedItems) {
+            const maxStock = (inventoryStock.bases && inventoryStock.bases[item.base] !== undefined) 
+                ? inventoryStock.bases[item.base] 
+                : 99;
+
+            if (item.qty > maxStock) {
+                alert(`Stok ${item.base} tidak mencukupi (sisa ${maxStock}). Mohon sesuaikan pesanan.`);
+                return;
+            }
+        }
+
+        // POTONG STOK DI DATABASE SEKARANG
+        deductInventoryStock(selectedItems);
+
         const totalToPay = selectedItems.reduce((sum, item) => {
             const qty = item.qty || 1;
             return sum + (item.total || ((item.unitPrice || 5000) * qty));
         }, 0);
 
+        const orderId = getNextOrderId();
         const now = new Date();
         const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
 
         const payload = {
-            id: getNextOrderId(),
+            id: orderId,
             date: now.toLocaleDateString('id-ID', dateOptions),
             time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             customer: buyerName,
             items: selectedItems,
-            total: totalToPay
+            total: totalToPay,
+            paymentMethod: 'QRIS GoPay',
+            paymentStatus: 'UNPAID'
         };
 
-        // Simpan transaksi terbaru & sisa item keranjang yang belum dicentang
+        let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+        localOrders.push(payload);
+        localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
+
+        // Hapus barang yang dibayar dari keranjang
         saveCartData(remainingItems);
+        renderCart();
 
-        confirmPayBtn.disabled = true;
-        confirmPayBtn.textContent = 'MEMPROSES...';
+        const stepInput = document.getElementById('modal-step-input');
+        const stepWaiting = document.getElementById('modal-step-waiting');
+        const waitingOrderId = document.getElementById('waiting-order-id');
+        const waitingStatusBadge = document.getElementById('waiting-status-badge');
 
-        const navigateToReceipt = () => {
-            if (cartQrisModal) {
-                cartQrisModal.classList.add('hidden');
-                cartQrisModal.classList.remove('active');
-            }
-            if (buyerNameInput) buyerNameInput.value = '';
-            confirmPayBtn.disabled = false;
-            confirmPayBtn.textContent = 'SELESAI BAYAR';
-            window.location.href = 'receipt.html';
-        };
+        if (stepInput) stepInput.style.display = 'none';
+        if (stepWaiting) stepWaiting.style.display = 'block';
+        if (waitingOrderId) waitingOrderId.textContent = orderId;
+        if (waitingStatusBadge) {
+            waitingStatusBadge.style.background = 'var(--c-yellow)';
+            waitingStatusBadge.style.color = 'var(--c-purple)';
+            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
+        }
 
-        // Push Async ke Firebase Realtime Database
         if (typeof db !== 'undefined') {
-            db.ref('kacau_orders').push(payload)
-                .then(() => {
-                    navigateToReceipt();
-                })
-                .catch((error) => {
-                    console.error("Gagal push ke Firebase:", error);
-                    navigateToReceipt();
-                });
+            const newRef = db.ref('kacau_orders').push();
+            payload.firebaseKey = newRef.key;
+            await newRef.set(payload);
+
+            listenForSellerConfirmation(newRef.key);
         } else {
-            console.error("Firebase Database 'db' tidak terdefinisi.");
-            navigateToReceipt();
+            console.error("Firebase DB 'db' tidak terdefinisi.");
         }
     };
 }
 
-// Inisialisasi Render
+initCartStockListener();
 renderCart();

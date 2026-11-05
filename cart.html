@@ -45,26 +45,52 @@
         <button id="cart-checkout-btn" class="btn btn-invert" style="padding: 12px 20px; font-size: 0.65rem;">CHECKOUT</button>
     </footer>
 
-    <!-- QRIS pembayaran keranjang -->
-    <div id="cart-qris-modal" class="modal-overlay hidden">
-        <div class="modal-card" style="max-width: 310px; padding: 20px; text-align: center; position: relative;">
-            <button id="close-qris-btn" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-family: 'Press Start 2P', cursive; font-size: 1rem; color: var(--c-purple); cursor: pointer;">x</button>
-            <h3 class="modal-title" style="font-size: 0.8rem; color: var(--c-purple); margin-bottom: 15px;">SCAN QRIS</h3>
+
+    <!-- pembayaran QRIS -->
+    <div id="qris-modal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 330px; text-align: center; padding: 20px;">
+            <h3 style="font-family: 'Press Start 2P', cursive; font-size: 0.75rem; margin-bottom: 12px; color: var(--c-purple);">PEMBAYARAN QRIS</h3>
             
-            <div class="qris-box" style="margin-bottom: 15px;">
-                <img src="qris.jpg" alt="QRIS Code" style="max-width: 100%; height: auto; border: 3px solid var(--c-purple);" onerror="this.style.display='none';">
+            <!-- form pembayaran & QRIS -->
+            <div id="modal-step-input">
+                <div style="text-align: center; margin: 8px 0;">
+                    <img id="qris-image" src="qris.png" alt="QRIS GoPay" style="width: 190px; height: 190px; border: 3px solid var(--c-purple); background: #fff; object-fit: contain;">
+                </div>
+    
+                <div style="background: var(--c-yellow); border: 3px solid var(--c-purple); padding: 8px; margin: 10px 0;">
+                    <p style="font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: var(--c-purple); margin-bottom: 4px;">TOTAL TAGIHAN:</p>
+                    <p style="font-family: 'Press Start 2P', cursive; font-size: 0.85rem; color: var(--c-purple); font-weight: bold; margin: 0;">
+                        RP <span id="modal-pay-total">0</span>
+                    </p>
+                </div>
+    
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label style="font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: var(--c-purple); display: block; margin-bottom: 4px;">NAMA PEMBELI:</label>
+                    <input type="text" id="buyer-name" placeholder="Nama" style="width: 100%; padding: 8px; font-family: inherit; font-size: 0.6rem; border: 3px solid var(--c-purple); background: #fff; box-sizing: border-box; text-align: center; outline: none;" required>
+                </div>
+    
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                    <button id="close-qris-btn" class="btn" style="flex: 1; padding: 10px 5px; font-size: 0.5rem;">BATAL</button>
+                    <button id="confirm-pay-btn" class="btn btn-invert" style="flex: 1.2; padding: 10px 5px; font-size: 0.5rem;">SUDAH BAYAR</button>
+                </div>
             </div>
-
-            <input type="text" id="buyer-name-input" placeholder="NAMA KAMU..." class="pixel-input">
-
-            <div style="font-size: 0.7rem; color: var(--c-purple); margin-bottom: 15px;">
-                TOTAL: <strong>RP <span id="modal-pay-total">0</span></strong>
+    
+            <!-- konfirmasi kasir -->
+            <div id="modal-step-waiting" style="display: none; padding: 10px 0;">
+                <div style="font-size: 2rem; margin-bottom: 10px;">⏳</div>
+                <h4 style="font-family: 'Press Start 2P', cursive; font-size: 0.65rem; color: var(--c-purple); margin-bottom: 10px;">MENUNGGU KONFIRMASI KASIR</h4>
+                
+                <p style="font-size: 0.55rem; color: var(--c-purple); line-height: 1.4; margin-bottom: 15px;">
+                    Pesanan kamu <b id="waiting-order-id">REQ-000</b> sudah terdaftar.<br>
+                    Tunjukkan bukti transfer ke kasir stand untuk cetak nota.
+                </p>
+    
+                <div id="waiting-status-badge" style="background: var(--c-yellow); border: 2px solid var(--c-purple); padding: 8px; font-family: 'Press Start 2P', cursive; font-size: 0.5rem; color: var(--c-purple);">
+                    STATUS: UNPAID
+                </div>
             </div>
-
-            <button id="confirm-pay-btn" class="btn btn-invert" style="width: 100%; padding: 12px; font-size: 0.6rem;">SELESAI BAYAR</button>
         </div>
     </div>
-
     <!-- custom alert -->
     <div id="alert-modal" class="modal-overlay hidden">
         <div class="modal-card" style="max-width: 300px; padding: 20px; text-align: center;">
