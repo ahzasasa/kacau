@@ -4,6 +4,33 @@ const SELLER_WA_NUMBER = "6281233209503";
 let activeCartListenerRef = null;
 let inventoryStock = { bases: {}, toppings: {} };
 
+// DOM Custom Alert Elements
+const alertModal = document.getElementById('alert-modal');
+const alertMessage = document.getElementById('alert-message');
+const btnCloseAlert = document.getElementById('close-alert-btn');
+
+/**
+ * Custom Retro Alert Popup
+ */
+const showCustomAlert = (pesan) => {
+    if (alertMessage && alertModal) {
+        alertMessage.textContent = pesan;
+        alertModal.classList.remove('hidden');
+        alertModal.classList.add('active');
+    } else {
+        alert(pesan);
+    }
+};
+
+if (btnCloseAlert) {
+    btnCloseAlert.addEventListener('click', () => {
+        if (alertModal) {
+            alertModal.classList.add('hidden');
+            alertModal.classList.remove('active');
+        }
+    });
+}
+
 /**
  * Format Angka ke Rupiah
  */
@@ -16,7 +43,7 @@ const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
 const saveCartData = (cart) => localStorage.setItem('kacau_cart', JSON.stringify(cart));
 
 /**
- * Helper untuk Mengambil Stok Database
+ * Helper untuk Mengambil Stok Database (Case-Insensitive & Anti-Typo)
  */
 const getStockValue = (categoryObj, targetName) => {
     if (!categoryObj) return 99;
@@ -64,14 +91,14 @@ PRODI: ${payload.prodi}
 --- DETAIL PESANAN [${payload.id}] ---
 ${itemsText}
 TOTAL: RP ${formatNumber(payload.total)}
---------------------------------------
+-------------------------------------
 (Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
 
     return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
 };
 
 /**
- * Auto Increment Order ID
+ * Auto Increment Order ID (REQ-001, REQ-002, dst.)
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -209,7 +236,7 @@ const attachCartEventListeners = () => {
             const maxStock = getStockValue(inventoryStock.bases, item.base);
 
             if (item.qty >= maxStock) {
-                alert(`Stok ${item.base} tinggal ${maxStock} porsi!`);
+                showCustomAlert(`Stok ${item.base} cuma sisa ${maxStock} porsi!`);
                 return;
             }
 
@@ -232,7 +259,7 @@ const attachCartEventListeners = () => {
 
             if (val > maxStock) {
                 val = maxStock;
-                alert(`Stok ${item.base} cuma sisa ${maxStock} porsi!`);
+                showCustomAlert(`Stok ${item.base} cuma sisa ${maxStock} porsi!`);
             }
 
             cart[idx].qty = val;
@@ -330,7 +357,7 @@ if (cartCheckoutBtn) {
         const selectedItems = cart.filter(item => item.checked !== false);
 
         if (selectedItems.length === 0) {
-            alert('Pilih minimal satu pesanan di keranjang untuk dicheckout!');
+            showCustomAlert('Pilih minimal satu pesanan di keranjang untuk dicheckout!');
             return;
         }
 
@@ -338,7 +365,7 @@ if (cartCheckoutBtn) {
         for (let item of selectedItems) {
             const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
-                alert(`Pesanan ${item.base} berjumlah ${item.qty} melebihi sisa stok (${maxStock}). Kurangi jumlahnya dulu ya!`);
+                showCustomAlert(`Pesanan ${item.base} berjumlah ${item.qty} melebihi sisa stok (${maxStock}). Kurangi jumlahnya dulu ya!`);
                 return;
             }
         }
@@ -384,7 +411,7 @@ if (confirmPayBtn) {
         const buyerProdi = prodiInput ? prodiInput.value.trim() : '-';
 
         if (!buyerName) {
-            alert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
+            showCustomAlert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
             return;
         }
 
@@ -398,7 +425,7 @@ if (confirmPayBtn) {
         for (let item of selectedItems) {
             const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
-                alert(`Stok ${item.base} tidak mencukupi (sisa ${maxStock}). Mohon sesuaikan pesanan.`);
+                showCustomAlert(`Stok ${item.base} tidak mencukupi (sisa ${maxStock}). Mohon sesuaikan pesanan.`);
                 return;
             }
         }
