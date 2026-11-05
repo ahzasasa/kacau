@@ -1,11 +1,14 @@
-// Pilihan Menu Utama
+// Nomor WhatsApp Penjual
+const SELLER_WA_NUMBER = "6281233209503";
+
+// State Pilihan Menu Utama
 let currentSelection = { base: null, price: 0, node: null };
 let currentToppings = new Map();
 let currentQty = 0;
 let directCheckoutCup = null;
 let activeOrderListenerRef = null;
 
-// Inventory
+// Real-time Inventory State
 let inventoryStock = { bases: {}, toppings: {} };
 
 // Reference DOM Elements
@@ -35,6 +38,7 @@ const stepInput = document.getElementById('modal-step-input');
 const stepWaiting = document.getElementById('modal-step-waiting');
 const waitingOrderId = document.getElementById('waiting-order-id');
 const waitingStatusBadge = document.getElementById('waiting-status-badge');
+const waConfirmLink = document.getElementById('wa-confirm-link');
 
 /**
  * Format Angka ke Rupiah
@@ -67,7 +71,7 @@ if (btnCloseAlert) {
 }
 
 /**
- * Auto Increment Order ID
+ * Auto Increment Order ID (REQ-001, REQ-002, dst.)
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -107,7 +111,7 @@ const updateCartBadge = () => {
 };
 
 /**
- * Hitung Sisa Stok
+ * Hitung Sisa Stok Efektif (Stok Database dikurangi item yang sudah di Keranjang)
  */
 const getAvailableBaseStock = () => {
     if (!currentSelection.base) return 99;
@@ -125,7 +129,31 @@ const getAvailableBaseStock = () => {
 };
 
 /**
- * Real-time Stok Pembeli
+ * Membuat URL WhatsApp dengan template bukti pembayaran lengkap
+ */
+const generateWALink = (payload) => {
+    const itemsText = payload.items.map(item => {
+        const topStr = item.toppings && item.toppings.length > 0 ? ` (+ ${item.toppings.join(', ')})` : '';
+        return `- ${item.qty}x ${item.base}${topStr}`;
+    }).join('\n');
+
+    const messageTemplate = 
+`LAMPIRKAN BUKTI PEMBAYARAN!
+harap mengisi data berikut.
+NAMA: ${payload.customer}
+PRODI: ${payload.prodi}
+
+--- DETAIL PESANAN [${payload.id}] ---
+${itemsText}
+TOTAL: RP ${formatNumber(payload.total)}
+-------------------------------------
+(Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
+
+    return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
+};
+
+/**
+ * Listener Real-time Stok Pembeli (Disable Kartu Jika Stok <= 0)
  */
 const initBuyerStockListener = () => {
     const updateBuyerStockUI = (stockData) => {
@@ -193,7 +221,7 @@ const initBuyerStockListener = () => {
 };
 
 /**
- * Pengurangan Stok di Database
+ * Pengurangan Stok Otomatis di Database Saat Checkout
  */
 const deductInventoryStock = (items) => {
     if (!items || !Array.isArray(items)) return;
@@ -226,7 +254,7 @@ const deductInventoryStock = (items) => {
 };
 
 /**
- * Kalkulasi Total Harga
+ * Kalkulasi Total Harga & Update UI Bottom Bar
  */
 const updateSummaryUI = () => {
     let singleUnitPrice = currentSelection.price;
@@ -380,14 +408,14 @@ if (qtyMinusBtn) {
     };
 }
 
-// Kontrol Kuantitas
+// Kontrol Kuantitas (+) dengan Pembatasan Stok Efektif
 if (qtyPlusBtn) {
     qtyPlusBtn.onclick = () => {
         if (!validateBaseSelected()) return;
 
         const maxStock = getAvailableBaseStock();
         if (currentQty >= maxStock) {
-            showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} cup!`);
+            showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} porsi!`);
             return;
         }
 
@@ -397,7 +425,7 @@ if (qtyPlusBtn) {
     };
 }
 
-// Input Kuantitas Manual
+// Input Kuantitas Manual dengan Pembatasan Stok Efektif
 if (qtyValEl) {
     qtyValEl.onfocus = () => {
         if (!currentSelection.base) {
@@ -428,7 +456,7 @@ if (qtyValEl) {
             const maxStock = getAvailableBaseStock();
             if (val > maxStock) {
                 val = maxStock;
-                showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} cup!`);
+                showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} porsi!`);
             }
             currentQty = val;
         }
@@ -442,7 +470,7 @@ if (qtyValEl) {
     };
 }
 
-// Tombol Tambah ke Keranjang dengan Validasi Stok Efektif
+// Tombol Tambah ke Keranjang
 if (addToCartBtn) {
     addToCartBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
@@ -482,7 +510,7 @@ if (addToCartBtn) {
     });
 }
 
-// Tombol Checkout Langsung dengan Validasi Stok Efektif
+// Tombol Checkout Langsung
 if (checkoutBtn) {
     checkoutBtn.addEventListener('click', () => {
         if (!currentSelection.base) {
@@ -525,7 +553,7 @@ if (closeQrisBtn) {
 }
 
 /**
- * Konfirmasi Penjual
+ * Mendengarkan Konfirmasi Penjual secara Real-time via Firebase DB
  */
 const listenForSellerConfirmation = (firebaseNodeKey) => {
     if (typeof db === 'undefined') return;
@@ -559,12 +587,15 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
 };
 
 /**
- * Konfirmasi Pembeli (SUDAH BAYAR)
+ * Konfirmasi Pembeli (SUDAH BAYAR) -> Kirim ke Firebase, Potong Stok, Set Link WA & Tunggu Konfirmasi Kasir
  */
 if (confirmPayBtn) {
     confirmPayBtn.addEventListener('click', async () => {
-        const inputEl = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
-        const buyerName = inputEl ? inputEl.value.trim() : '';
+        const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
+        const prodiInput = document.querySelector('#qris-modal #buyer-prodi') || document.getElementById('buyer-prodi');
+
+        const buyerName = nameInput ? nameInput.value.trim() : '';
+        const buyerProdi = prodiInput ? prodiInput.value.trim() : '-';
 
         if (!buyerName) {
             showCustomAlert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
@@ -588,11 +619,17 @@ if (confirmPayBtn) {
             date: now.toLocaleDateString('id-ID', dateOptions),
             time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             customer: buyerName,
+            prodi: buyerProdi,
             items: [directCheckoutCup],
             total: directCheckoutCup.total,
             paymentMethod: 'QRIS GoPay',
             paymentStatus: 'UNPAID'
         };
+
+        // Update Link WhatsApp dengan template pesan khusus
+        if (waConfirmLink) {
+            waConfirmLink.href = generateWALink(payload);
+        }
 
         // Simpan transaksi awal ke LocalStorage
         let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
@@ -600,7 +637,7 @@ if (confirmPayBtn) {
         localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        // Ubah modal ke Step 2
+        // Ubah Modal ke Step 2 (Menunggu Konfirmasi Kasir)
         if (stepInput) stepInput.style.display = 'none';
         if (stepWaiting) stepWaiting.style.display = 'block';
         if (waitingOrderId) waitingOrderId.textContent = orderId;
@@ -623,7 +660,7 @@ if (confirmPayBtn) {
     });
 }
 
-// Inisialisasi
+// Inisialisasi Badge Keranjang & Listener Stok Pembeli
 updateCartBadge();
 initBuyerStockListener();
 

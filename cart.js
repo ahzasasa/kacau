@@ -1,7 +1,5 @@
-/**
- * KACAU (Statistika Cincau) - Cart Logic (cart.js)
- * Static QRIS + Real-time Inventory Validation & Seller Manual Confirmation Listener
- */
+// Nomor WhatsApp Penjual
+const SELLER_WA_NUMBER = "6281233209503";
 
 let activeCartListenerRef = null;
 let inventoryStock = { bases: {}, toppings: {} };
@@ -63,6 +61,30 @@ const deductInventoryStock = (items) => {
     });
 
     localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
+};
+
+/**
+ * Generator Pesan WhatsApp Format Lengkap
+ */
+const generateWALink = (payload) => {
+    const itemsText = payload.items.map(item => {
+        const topStr = item.toppings && item.toppings.length > 0 ? ` (+ ${item.toppings.join(', ')})` : '';
+        return `- ${item.qty}x ${item.base}${topStr}`;
+    }).join('\n');
+
+    const messageTemplate = 
+`LAMPIRKAN BUKTI PEMBAYARAN!
+harap mengisi data berikut.
+NAMA: ${payload.customer}
+PRODI: ${payload.prodi}
+
+--- DETAIL PESANAN [${payload.id}] ---
+${itemsText}
+TOTAL: RP ${formatNumber(payload.total)}
+-------------------------------------
+(Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
+
+    return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
 };
 
 const getNextOrderId = () => {
@@ -360,8 +382,11 @@ if (closeQrisBtn) {
 // SUDAH BAYAR di Halaman Keranjang
 if (confirmPayBtn) {
     confirmPayBtn.onclick = async () => {
-        const inputEl = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
-        const buyerName = inputEl ? inputEl.value.trim() : '';
+        const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
+        const prodiInput = document.querySelector('#qris-modal #buyer-prodi') || document.getElementById('buyer-prodi');
+
+        const buyerName = nameInput ? nameInput.value.trim() : '';
+        const buyerProdi = prodiInput ? prodiInput.value.trim() : '-';
 
         if (!buyerName) {
             alert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
@@ -403,11 +428,18 @@ if (confirmPayBtn) {
             date: now.toLocaleDateString('id-ID', dateOptions),
             time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             customer: buyerName,
+            prodi: buyerProdi,
             items: selectedItems,
             total: totalToPay,
             paymentMethod: 'QRIS GoPay',
             paymentStatus: 'UNPAID'
         };
+
+        // Update Link WhatsApp Kasir dengan template pesan khusus
+        const waConfirmLink = document.getElementById('wa-confirm-link');
+        if (waConfirmLink) {
+            waConfirmLink.href = generateWALink(payload);
+        }
 
         let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
         localOrders.push(payload);
