@@ -1,9 +1,4 @@
-/**
- * KACAU (Statistika Cincau) - Customer Catalog Logic (script.js)
- * Integrated with Real-Time Stock Validation, Dynamic WhatsApp Link & Pure Database Stock Checking
- */
-
-// Nomor WhatsApp Penjual (Sesuaikan dengan nomor HP Kasir Stand)
+// Nomor WhatsApp Penjual
 const SELLER_WA_NUMBER = "6281233209503";
 
 // State Pilihan Menu Utama
@@ -76,7 +71,7 @@ if (btnCloseAlert) {
 }
 
 /**
- * Auto Increment Order ID (REQ-001, REQ-002, dst.)
+ * Auto Increment Order ID
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -116,7 +111,7 @@ const updateCartBadge = () => {
 };
 
 /**
- * Helper untuk Mengambil Stok Database (Case-Insensitive & Anti-Typo)
+ * Helper untuk Mengambil Stok Database
  */
 const getStockValue = (categoryObj, targetName) => {
     if (!categoryObj) return 99;
@@ -129,7 +124,7 @@ const getStockValue = (categoryObj, targetName) => {
 };
 
 /**
- * Hitung Sisa Stok Murni dari Database Kasir
+ * Hitung Sisa Stok dari Database Kasir
  */
 const getAvailableBaseStock = () => {
     if (!currentSelection.base) return 99;
@@ -137,7 +132,24 @@ const getAvailableBaseStock = () => {
 };
 
 /**
- * Membuat URL WhatsApp dengan Template Bukti Pembayaran Dinamis
+ * Validasi Stok Topping Akumulasi
+ */
+const validateAccumulatedToppingStock = (itemPayload) => {
+    if (!itemPayload || !itemPayload.toppings || !Array.isArray(itemPayload.toppings)) return true;
+
+    const cupQty = itemPayload.qty || 1;
+    for (let topName of itemPayload.toppings) {
+        const dbStock = getStockValue(inventoryStock.toppings, topName);
+        if (cupQty > dbStock) {
+            showCustomAlert(`Stok topping ${topName} cuma sisa ${dbStock} porsi, tidak cukup untuk ${cupQty} cup!`);
+            return false;
+        }
+    }
+    return true;
+};
+
+/**
+ * WhatsApp dengan Template Bukti Pembayaran
  */
 const generateWALink = (payload) => {
     const itemsText = payload.items.map(item => {
@@ -161,7 +173,7 @@ TOTAL: RP ${formatNumber(payload.total)}
 };
 
 /**
- * Listener Real-time Stok Pembeli (Murni berdasarkan Stok Database Kasir)
+ * Stok Pembeli
  */
 const initBuyerStockListener = () => {
     const updateBuyerStockUI = (stockData) => {
@@ -453,20 +465,51 @@ if (addToCartBtn) {
             return;
         }
 
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
         const cart = getCartData();
-        const toppingList = Array.from(currentToppings.keys());
+        const currentToppingList = Array.from(currentToppings.keys()).sort();
+        
         let singleUnitPrice = currentSelection.price;
         currentToppings.forEach(p => singleUnitPrice += p);
 
-        cart.push({
-            id: Date.now(),
-            base: currentSelection.base,
-            toppings: toppingList,
-            qty: currentQty,
-            unitPrice: singleUnitPrice,
-            total: singleUnitPrice * currentQty,
-            checked: true
+        const existingIndex = cart.findIndex(item => {
+            const sameBase = String(item.base).trim().toLowerCase() === String(currentSelection.base).trim().toLowerCase();
+            
+            const itemToppings = Array.isArray(item.toppings) 
+                ? item.toppings.map(t => String(t).trim().toLowerCase()).sort() 
+                : [];
+            const targetToppings = currentToppingList.map(t => String(t).trim().toLowerCase());
+            
+            const sameToppings = itemToppings.length === targetToppings.length && 
+                                itemToppings.every((val, idx) => val === targetToppings[idx]);
+
+            return sameBase && sameToppings;
         });
+
+        if (existingIndex !== -1) {
+            const newQty = (cart[existingIndex].qty || 1) + currentQty;
+
+            if (newQty > maxStock) {
+                showCustomAlert(`Total pesanan ${currentSelection.base} di keranjang melebihi stok (sisa: ${maxStock}).`);
+                return;
+            }
+
+            cart[existingIndex].qty = newQty;
+            cart[existingIndex].unitPrice = singleUnitPrice;
+            cart[existingIndex].total = singleUnitPrice * newQty;
+            cart[existingIndex].checked = true;
+        } else {
+            cart.push({
+                id: Date.now(),
+                base: currentSelection.base,
+                toppings: currentToppingList,
+                qty: currentQty,
+                unitPrice: singleUnitPrice,
+                total: singleUnitPrice * currentQty,
+                checked: true
+            });
+        }
 
         saveCartData(cart);
         showCustomAlert('Pesanan berhasil ditambahkan ke keranjang!');
@@ -493,6 +536,8 @@ if (checkoutBtn) {
             return;
         }
 
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
         if (modalPayTotal && directCheckoutCup) {
             modalPayTotal.textContent = formatNumber(directCheckoutCup.total);
         }
@@ -518,7 +563,7 @@ if (closeQrisBtn) {
 }
 
 /**
- * Mendengarkan Konfirmasi Penjual secara Real-time via Firebase DB
+ * Konfirmasi Penjual
  */
 const listenForSellerConfirmation = (firebaseNodeKey) => {
     if (typeof db === 'undefined') return;
@@ -572,6 +617,8 @@ if (confirmPayBtn) {
             return;
         }
 
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
         const orderId = getNextOrderId();
         const now = new Date();
         const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -588,7 +635,7 @@ if (confirmPayBtn) {
             paymentStatus: 'UNPAID'
         };
 
-        // Update Link WhatsApp Kasir secara Dinamis
+        // Link WhatsApp Kasir
         if (waConfirmLink) {
             waConfirmLink.href = generateWALink(payload);
         }
@@ -606,10 +653,9 @@ if (confirmPayBtn) {
         if (waitingStatusBadge) {
             waitingStatusBadge.style.background = 'var(--c-yellow)';
             waitingStatusBadge.style.color = 'var(--c-purple)';
-            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
+            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR';
         }
 
-        // Simpan ke Firebase Database & Jalankan Real-time Listener Konfirmasi Kasir
         if (typeof db !== 'undefined') {
             const newRef = db.ref('kacau_orders').push();
             payload.firebaseKey = newRef.key;
@@ -622,7 +668,6 @@ if (confirmPayBtn) {
     });
 }
 
-// Inisialisasi Badge Keranjang & Listener Stok Pembeli
 updateCartBadge();
 initBuyerStockListener();
 

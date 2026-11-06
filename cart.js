@@ -1,4 +1,4 @@
-// Nomor WhatsApp Penjual
+// Nomor WhatsApp
 const SELLER_WA_NUMBER = "6281233209503";
 
 let activeCartListenerRef = null;
@@ -10,7 +10,7 @@ const alertMessage = document.getElementById('alert-message');
 const btnCloseAlert = document.getElementById('close-alert-btn');
 
 /**
- * Custom Retro Alert Popup
+ * Custom Alert Popup
  */
 const showCustomAlert = (pesan) => {
     if (alertMessage && alertModal) {
@@ -43,7 +43,51 @@ const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
 const saveCartData = (cart) => localStorage.setItem('kacau_cart', JSON.stringify(cart));
 
 /**
- * Helper untuk Mengambil Stok Database (Case-Insensitive & Anti-Typo)
+ * Akumulasi Stok Topping dan Base di Keranjang
+ */
+const validateCartStockAvailability = (selectedItems) => {
+    const baseDemand = {};
+    const toppingDemand = {};
+
+    selectedItems.forEach(item => {
+        const qty = item.qty || 1;
+        
+        if (item.base) {
+            const bName = item.base.toLowerCase().trim();
+            baseDemand[bName] = (baseDemand[bName] || 0) + qty;
+        }
+
+        if (item.toppings && Array.isArray(item.toppings)) {
+            item.toppings.forEach(top => {
+                const tName = top.toLowerCase().trim();
+                toppingDemand[tName] = (toppingDemand[tName] || 0) + qty;
+            });
+        }
+    });
+
+    // Cek Stok Topping
+    for (let tName in toppingDemand) {
+        const dbStock = getStockValue(inventoryStock.toppings, tName);
+        if (toppingDemand[tName] > dbStock) {
+            showCustomAlert(`Stok topping ${tName} cuma sisa ${dbStock} porsi, tetapi di keranjang kamu butuh total ${toppingDemand[tName]} porsi!`);
+            return false;
+        }
+    }
+
+    // Cek Stok Base
+    for (let bName in baseDemand) {
+        const dbStock = getStockValue(inventoryStock.bases, bName);
+        if (baseDemand[bName] > dbStock) {
+            showCustomAlert(`Stok varian rasa ${bName} cuma sisa ${dbStock} porsi, tetapi di keranjang kamu ada total ${baseDemand[bName]} porsi!`);
+            return false;
+        }
+    }
+
+    return true;
+};
+
+/**
+ * Mengambil Stok Database
  */
 const getStockValue = (categoryObj, targetName) => {
     if (!categoryObj) return 99;
@@ -56,7 +100,7 @@ const getStockValue = (categoryObj, targetName) => {
 };
 
 /**
- * Listener Stok Real-time di Halaman Keranjang
+ * Stok Real-time di Halaman Keranjang
  */
 const initCartStockListener = () => {
     const updateStockData = (stockData) => {
@@ -74,7 +118,7 @@ const initCartStockListener = () => {
 };
 
 /**
- * Generator Pesan WhatsApp Format Lengkap
+ * Pesan WhatsApp
  */
 const generateWALink = (payload) => {
     const itemsText = payload.items.map(item => {
@@ -98,7 +142,7 @@ TOTAL: RP ${formatNumber(payload.total)}
 };
 
 /**
- * Auto Increment Order ID (REQ-001, REQ-002, dst.)
+ * Auto Increment Order ID
  */
 const getNextOrderId = () => {
     let maxNum = 0;
@@ -147,7 +191,7 @@ const updateCartTotals = () => {
 };
 
 /**
- * Render Daftar Item Keranjang
+ * Daftar Item Keranjang
  */
 const renderCart = () => {
     const cartContainer = document.getElementById('cart-items-container');
@@ -203,7 +247,7 @@ const renderCart = () => {
 };
 
 /**
- * Event Listeners untuk Interaksi Item Keranjang
+ * Item Keranjang
  */
 const attachCartEventListeners = () => {
     let cart = getCartData();
@@ -231,7 +275,7 @@ const attachCartEventListeners = () => {
 
     document.querySelectorAll('.cart-qty-plus').forEach(btn => {
         btn.onclick = (e) => {
-            const idx = e.target.dataset.index;
+            const idx = parseInt(e.target.dataset.index);
             const item = cart[idx];
             const maxStock = getStockValue(inventoryStock.bases, item.base);
 
@@ -239,7 +283,15 @@ const attachCartEventListeners = () => {
                 showCustomAlert(`Stok ${item.base} cuma sisa ${maxStock} porsi!`);
                 return;
             }
-
+    
+            const simulatedCart = JSON.parse(JSON.stringify(cart));
+            simulatedCart[idx].qty += 1;
+            const checkedItems = simulatedCart.filter(i => i.checked !== false);
+    
+            if (!validateCartStockAvailability(checkedItems)) {
+                return;
+            }
+    
             cart[idx].qty++;
             cart[idx].total = (cart[idx].unitPrice || 5000) * cart[idx].qty;
             saveCartData(cart);
@@ -315,7 +367,7 @@ const closeQrisBtn = document.getElementById('close-qris-btn') || document.getEl
 const confirmPayBtn = document.getElementById('confirm-pay-btn') || document.getElementById('cart-confirm-pay-btn');
 
 /**
- * Listener Real-time Konfirmasi Pembayaran Kasir via Firebase
+ * Konfirmasi Pembayaran Kasir
  */
 const listenForSellerConfirmation = (firebaseNodeKey) => {
     if (typeof db === 'undefined') return;
@@ -349,7 +401,7 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
 };
 
 /**
- * Buka Modal Checkout Keranjang & Check Stok Porsi
+ * Checkout Keranjang & Check Stok Porsi
  */
 if (cartCheckoutBtn) {
     cartCheckoutBtn.onclick = () => {
@@ -361,7 +413,9 @@ if (cartCheckoutBtn) {
             return;
         }
 
-        // Pengecekan Stok Sebelum Buka Modal
+        if (!validateCartStockAvailability(selectedItems)) return;
+
+        // Pengecekan Stok
         for (let item of selectedItems) {
             const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
@@ -419,6 +473,7 @@ if (confirmPayBtn) {
         const selectedItems = cart.filter(item => item.checked !== false);
         const remainingItems = cart.filter(item => item.checked === false);
 
+        if (!validateCartStockAvailability(selectedItems)) return;
         if (selectedItems.length === 0) return;
 
         // Pengecekan ulang stok
@@ -451,7 +506,7 @@ if (confirmPayBtn) {
             paymentStatus: 'UNPAID'
         };
 
-        // Update Link WhatsApp Kasir dengan Template Pesan Lengkap
+        // Link WhatsApp Kasir
         const waConfirmLink = document.getElementById('wa-confirm-link');
         if (waConfirmLink) {
             waConfirmLink.href = generateWALink(payload);
@@ -462,7 +517,6 @@ if (confirmPayBtn) {
         localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
         localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
 
-        // Hapus barang yang dibayar dari keranjang lokal
         saveCartData(remainingItems);
         renderCart();
 
@@ -480,7 +534,6 @@ if (confirmPayBtn) {
             waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
         }
 
-        // Simpan ke Firebase DB & Listen Konfirmasi Penjual
         if (typeof db !== 'undefined') {
             const newRef = db.ref('kacau_orders').push();
             payload.firebaseKey = newRef.key;
