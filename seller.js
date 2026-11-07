@@ -13,7 +13,19 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// List Produk Resmi
+// Search REQ & Modal Receipt DOM References
+const searchReqInput = document.getElementById('search-req-input');
+const searchReqBtn = document.getElementById('search-req-btn');
+const sellerReceiptModal = document.getElementById('seller-receipt-modal');
+const receiptModalBody = document.getElementById('receipt-modal-body');
+const closeReceiptModalBtn = document.getElementById('close-receipt-modal');
+
+// DOM Custom Alert Seller
+const sellerAlertModal = document.getElementById('seller-alert-modal');
+const sellerAlertMessage = document.getElementById('seller-alert-message');
+const closeSellerAlertBtn = document.getElementById('close-seller-alert-btn');
+
+// List Produk
 const baseList = [
     "Original", "Blueberry", "Grape", "Guava", "Mango", 
     "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate"
@@ -45,6 +57,28 @@ const formatNumber = (num) => {
     const val = parseInt(num) || 0;
     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
+
+/**
+ * Custom Retro Alert Notification
+ */
+const showSellerAlert = (pesan) => {
+    if (sellerAlertMessage && sellerAlertModal) {
+        sellerAlertMessage.textContent = pesan;
+        sellerAlertModal.style.display = 'flex';
+        sellerAlertModal.classList.remove('hidden');
+    } else {
+        alert(pesan);
+    }
+};
+
+if (closeSellerAlertBtn) {
+    closeSellerAlertBtn.onclick = () => {
+        if (sellerAlertModal) {
+            sellerAlertModal.style.display = 'none';
+            sellerAlertModal.classList.add('hidden');
+        }
+    };
+}
 
 /**
  * Tab Navigation Handler
@@ -337,7 +371,7 @@ const renderRekapStats = () => {
 };
 
 /**
- * Render Input Controls Manajemen Stok (Default 0 & Konsisten)
+ * Render Input Controls Manajemen Stok
  */
 const renderStockManagementUI = () => {
     const baseStockContainer = document.getElementById('seller-base-stock-list');
@@ -442,24 +476,21 @@ const deductStockForOrder = (items) => {
 };
 
 /**
- * Konfirmasi Lunas & Complete Order (LANGSUNG POTONG STOK DI SINI)
+ * Konfirmasi Lunas & Complete Order
  */
 window.confirmPayment = (firebaseKey, orderId) => {
     const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
 
-    // 1. Potong Stok Otomatis Saat Tombol Konfirmasi Lunas Diklik
     if (targetOrder && targetOrder.items) {
         deductStockForOrder(targetOrder.items);
     }
 
-    // 2. Update Status Pembayaran di Firebase DB
     if (typeof db !== 'undefined' && firebaseKey) {
         db.ref('kacau_orders/' + firebaseKey).update({
             paymentStatus: 'PAID'
         });
     }
 
-    // 3. Update LocalStorage Status
     let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     localOrders = localOrders.map(o => {
         if (o.id === orderId) {
@@ -502,6 +533,106 @@ window.completeOrder = (firebaseKey, orderId) => {
         renderRekapStats();
     }
 };
+
+/**
+ * FITUR PENCARIAN NOMOR REQ & RECEIPT
+ */
+const searchOrderAndShowReceipt = (reqNumber) => {
+    if (!reqNumber || !reqNumber.trim()) {
+        showSellerAlert("Masukkan nomor REQ terlebih dahulu! (Contoh: REQ-001)");
+        return;
+    }
+
+    const cleanReq = reqNumber.trim().toUpperCase();
+
+    // 1. Cek di antrean aktif & pesanan selesai
+    const activeOrder = activeOrdersList.find(ord => ord && ord.id && ord.id.toUpperCase() === cleanReq);
+    const completedOrder = completedOrdersList.find(ord => ord && ord.id && ord.id.toUpperCase() === cleanReq);
+
+    const targetOrder = activeOrder || completedOrder;
+
+    if (!targetOrder) {
+        showSellerAlert(`Pesanan dengan nomor [${cleanReq}] tidak ditemukan!`);
+        return;
+    }
+
+    // 2. Tentukan Status Pengerjaan (Beres / Masih Antre)
+    const isCompleted = !!completedOrder;
+    const processBadge = isCompleted
+        ? `<span style="background: #2980b9; color: #fff; padding: 2px 6px; font-size: 0.45rem; font-weight: bold;">[SELESAI / DONE]</span>`
+        : `<span style="background: #f39c12; color: #fff; padding: 2px 6px; font-size: 0.45rem; font-weight: bold;">[DALAM ANTREAN]</span>`;
+
+    // 3. Status Pembayaran
+    const isLunas = (targetOrder.paymentStatus === 'PAID' || targetOrder.paymentStatus === 'LUNAS');
+    const paymentBadge = isLunas 
+        ? `<strong style="color: #27ae60;">[LUNAS]</strong>` 
+        : `<strong style="color: #e74c3c;">[BELUM BAYAR / UNPAID]</strong>`;
+
+    let itemsListHTML = '';
+    if (targetOrder.items && Array.isArray(targetOrder.items)) {
+        targetOrder.items.forEach(it => {
+            const topStr = (it.toppings && Array.isArray(it.toppings) && it.toppings.length > 0) ? `+ ${it.toppings.join(', ')}` : '-';
+            itemsListHTML += `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                    <span>${it.qty || 1}x ${it.base || it.name || 'Varian'}</span>
+                    <span>RP ${formatNumber(it.total)}</span>
+                </div>
+                <div style="font-size: 0.45rem; color: #555; margin-bottom: 6px; padding-left: 6px;">TOPPING: ${topStr}</div>
+            `;
+        });
+    }
+
+    if (receiptModalBody) {
+        receiptModalBody.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong>NO REQ : ${targetOrder.id}</strong>
+                ${processBadge}
+            </div>
+            <div><strong>PEMBELI:</strong> ${targetOrder.customer || 'Pembeli'}</div>
+            <div><strong>PRODI  :</strong> ${targetOrder.prodi || '-'}</div>
+            <div><strong>WAKTU  :</strong> ${targetOrder.date || ''} ${targetOrder.time || ''}</div>
+            <div><strong>BAYAR  :</strong> ${paymentBadge}</div>
+            <hr style="border: none; border-top: 1px dashed var(--c-purple); margin: 8px 0;">
+            <div style="font-weight: bold; margin-bottom: 6px;">DETAIL PESANAN:</div>
+            ${itemsListHTML}
+            <hr style="border: none; border-top: 1px dashed var(--c-purple); margin: 8px 0;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.6rem;">
+                <span>TOTAL:</span>
+                <span>RP ${formatNumber(targetOrder.total)}</span>
+            </div>
+        `;
+    }
+
+    if (sellerReceiptModal) {
+        sellerReceiptModal.style.display = 'flex';
+        sellerReceiptModal.classList.remove('hidden');
+    }
+};
+
+// Handler Tombol Cari & Enter Keyboard
+if (searchReqBtn) {
+    searchReqBtn.onclick = () => {
+        searchOrderAndShowReceipt(searchReqInput ? searchReqInput.value : '');
+    };
+}
+
+if (searchReqInput) {
+    searchReqInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            searchOrderAndShowReceipt(searchReqInput.value);
+        }
+    };
+}
+
+// Close Receipt Modal Handler
+if (closeReceiptModalBtn) {
+    closeReceiptModalBtn.onclick = () => {
+        if (sellerReceiptModal) {
+            sellerReceiptModal.style.display = 'none';
+            sellerReceiptModal.classList.add('hidden');
+        }
+    };
+}
 
 /**
  * Wipe / Format Data Handler
