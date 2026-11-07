@@ -1,42 +1,44 @@
-// Node DOM References Seller Dashboard
-const tabOrdersBtn = document.getElementById('tab-orders-btn');
-const tabRekapBtn = document.getElementById('tab-rekap-btn');
-const tabOrdersContent = document.getElementById('tab-orders');
-const tabRekapContent = document.getElementById('tab-rekap');
+// Nomor WhatsApp Penjual
+const SELLER_WA_NUMBER = "6281233209503";
 
-const questLogContainer = document.getElementById('quest-log-container');
-const omzetEl = document.getElementById('total-omzet');
-const totalOrdersCountEl = document.getElementById('total-orders-count');
-const btnFormatData = document.getElementById('btn-format-data');
+// State Pilihan Menu Utama
+let currentSelection = { base: null, price: 0, node: null };
+let currentToppings = new Map();
+let currentQty = 0;
+let directCheckoutCup = null;
+let activeOrderListenerRef = null;
 
-const confirmModal = document.getElementById('confirm-modal');
-const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
-const actionConfirmBtn = document.getElementById('action-confirm-btn');
+// Real-time Inventory State
+let inventoryStock = { bases: {}, toppings: {} };
 
-// List Produk Resmi (Match 100% dengan index.html, cart.html & script.js)
-const baseList = [
-    "Original", "Blueberry", "Grape", "Guava", "Mango", 
-    "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate"
-];
+// Reference DOM Elements
+const domTotal = document.getElementById('total-price');
+const domCartCount = document.getElementById('cart-count');
+const addToCartBtn = document.getElementById('add-to-cart-btn');
+const checkoutBtn = document.getElementById('checkout-btn');
+const cartIconBtn = document.querySelector('.cart-icon');
 
-const toppingList = [
-    "Cereal Choco Chips", "Cereal Froot Loops", "Cheese", "Chocolate Sprinkles", "Cookie Crumble"
-];
+// Kuantitas DOM
+const qtyMinusBtn = document.getElementById('qty-minus');
+const qtyPlusBtn = document.getElementById('qty-plus');
+const qtyValEl = document.getElementById('qty-val');
 
-// Default Stock diset 0 untuk seluruh produk
-const defaultStock = {
-    bases: {
-        "Original": 0, "Blueberry": 0, "Grape": 0, "Guava": 0, "Mango": 0,
-        "Melon": 0, "Strawberry": 0, "Bubble Gum": 0, "Cookies and Cream": 0, "Chocolate": 0
-    },
-    toppings: {
-        "Cereal Choco Chips": 0, "Cereal Froot Loops": 0, "Cheese": 0, "Chocolate Sprinkles": 0, "Cookie Crumble": 0
-    }
-};
+// Custom Alert Elements
+const alertModal = document.getElementById('alert-modal');
+const alertMessage = document.getElementById('alert-message');
+const btnCloseAlert = document.getElementById('close-alert-btn');
 
-let activeOrdersList = [];
-let completedOrdersList = [];
-let currentStock = JSON.parse(JSON.stringify(defaultStock));
+// Modal Elements & Steps
+const qrisModal = document.getElementById('qris-modal');
+const modalPayTotal = document.getElementById('modal-pay-total');
+const closeQrisBtn = document.getElementById('close-qris-btn');
+const confirmPayBtn = document.getElementById('confirm-pay-btn');
+
+const stepInput = document.getElementById('modal-step-input');
+const stepWaiting = document.getElementById('modal-step-waiting');
+const waitingOrderId = document.getElementById('waiting-order-id');
+const waitingStatusBadge = document.getElementById('waiting-status-badge');
+const waConfirmLink = document.getElementById('wa-confirm-link');
 
 /**
  * Format Angka ke Rupiah
@@ -47,509 +49,701 @@ const formatNumber = (num) => {
 };
 
 /**
- * Tab Navigation Handler
+ * Custom Alert Pop-up
  */
-if (tabOrdersBtn && tabRekapBtn) {
-    tabOrdersBtn.addEventListener('click', () => {
-        tabOrdersBtn.classList.add('active');
-        tabRekapBtn.classList.remove('active');
-        if (tabOrdersContent) tabOrdersContent.style.display = 'block';
-        if (tabRekapContent) tabRekapContent.style.display = 'none';
-    });
+const showCustomAlert = (pesan) => {
+    if (alertMessage && alertModal) {
+        alertMessage.textContent = pesan;
+        alertModal.classList.remove('hidden');
+        alertModal.classList.add('active');
+    } else {
+        alert(pesan);
+    }
+};
 
-    tabRekapBtn.addEventListener('click', () => {
-        tabRekapBtn.classList.add('active');
-        tabOrdersBtn.classList.remove('active');
-        if (tabRekapContent) tabRekapContent.style.display = 'block';
-        if (tabOrdersContent) tabOrdersContent.style.display = 'none';
-
-        renderRekapStats();
-        renderStockManagementUI();
+if (btnCloseAlert) {
+    btnCloseAlert.addEventListener('click', () => {
+        if (alertModal) {
+            alertModal.classList.add('hidden');
+            alertModal.classList.remove('active');
+        }
     });
 }
 
 /**
- * Inisialisasi Database (Orders & Stock)
+ * Auto Increment Order ID
  */
-const initSellerDatabaseListeners = () => {
-    const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+const getNextOrderId = async () => {
+    let maxNum = 0;
 
     if (typeof db !== 'undefined') {
-        // Listener Pesanan Masuk Real-time
-        db.ref('kacau_orders').on('value', (snapshot) => {
-            const data = snapshot.val();
-            activeOrdersList = [];
-
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    activeOrdersList.push({
-                        key: key,
-                        ...data[key]
-                    });
+        try {
+            const snapshot = await db.ref('kacau_orders').once('value');
+            const firebaseOrders = snapshot.val();
+            if (firebaseOrders) {
+                Object.values(firebaseOrders).forEach(ord => {
+                    if (ord && ord.id) {
+                        const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
+                        if (num > maxNum) maxNum = num;
+                    }
                 });
             }
-
-            localOrders.forEach(localOrd => {
-                const exists = activeOrdersList.some(fOrd => fOrd.id === localOrd.id);
-                if (!exists) {
-                    activeOrdersList.push(localOrd);
-                }
-            });
-
-            activeOrdersList.sort((a, b) => {
-                const numA = parseInt((a.id || '').replace('REQ-', '')) || 0;
-                const numB = parseInt((b.id || '').replace('REQ-', '')) || 0;
-                return numA - numB;
-            });
-
-            renderSellerDashboard();
-        });
-
-        // Listener Pesanan Selesai Real-time
-        db.ref('kacau_completed_orders').on('value', (snapshot) => {
-            const data = snapshot.val();
-            completedOrdersList = [];
-
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    completedOrdersList.push(data[key]);
-                });
-            }
-
-            renderRekapStats();
-        });
-
-        // Listener Stok Produk Real-time
-        db.ref('kacau_inventory').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.bases && data.toppings) {
-                currentStock = data;
-            } else {
-                db.ref('kacau_inventory').set(defaultStock);
-                currentStock = JSON.parse(JSON.stringify(defaultStock));
-            }
-            localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
-            renderStockManagementUI();
-        });
-    } else {
-        // LocalStorage Fallback
-        activeOrdersList = localOrders;
-        activeOrdersList.sort((a, b) => {
-            const numA = parseInt((a.id || '').replace('REQ-', '')) || 0;
-            const numB = parseInt((b.id || '').replace('REQ-', '')) || 0;
-            return numA - numB;
-        });
-
-        completedOrdersList = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
-        
-        const localStock = JSON.parse(localStorage.getItem('kacau_stock'));
-        if (localStock && localStock.bases && localStock.toppings) {
-            currentStock = localStock;
-        } else {
-            currentStock = JSON.parse(JSON.stringify(defaultStock));
-            localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
+        } catch (err) {
+            console.error("Gagal mengambil counter order dari Firebase:", err);
         }
-
-        renderSellerDashboard();
-        renderRekapStats();
-        renderStockManagementUI();
-    }
-};
-
-/**
- * Render Antrean Pesanan Aktif
- */
-const renderSellerDashboard = () => {
-    if (!questLogContainer) return;
-    questLogContainer.innerHTML = '';
-
-    if (activeOrdersList.length === 0) {
-        questLogContainer.innerHTML = `
-            <div style="text-align: center; padding: 30px 10px; background: var(--c-green-light); border: 4px solid var(--c-purple); margin-top: 15px;">
-                <p style="font-size: 0.65rem; color: var(--c-purple);">BELUM ADA PESANAN MASUK</p>
-            </div>
-        `;
-        return;
     }
 
-    activeOrdersList.forEach((order) => {
-        const card = document.createElement('div');
-        card.style.cssText = 'background: var(--c-yellow); border: 4px solid var(--c-purple); padding: 15px; margin-bottom: 15px; box-shadow: 4px 4px 0 rgba(69, 12, 63, 0.2);';
+    const localActive = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+    const localCompleted = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
+    const allLocalOrders = [...localActive, ...localCompleted];
 
-        let itemsHtml = '';
-        if (order.items && Array.isArray(order.items)) {
-            order.items.forEach(item => {
-                const qty = item.qty || 1;
-                const baseName = item.base || item.name || item.title || 'Varian Cincau';
-                
-                let topStr = '-';
-                if (item.toppings && Array.isArray(item.toppings) && item.toppings.length > 0) {
-                    topStr = item.toppings.join(', ');
-                } else if (typeof item.toppings === 'string' && item.toppings.trim() !== '') {
-                    topStr = item.toppings;
-                }
-
-                itemsHtml += `
-                    <div style="font-size: 0.55rem; color: var(--c-purple); margin-bottom: 8px; line-height: 1.5; background: rgba(255,255,255,0.4); padding: 6px; border: 1px dashed var(--c-purple);">
-                        <div><strong>QTY:</strong> ${qty}x</div>
-                        <div><strong>BASE:</strong> ${baseName}</div>
-                        <div><strong>EXT:</strong> ${topStr}</div>
-                    </div>
-                `;
-            });
-        } else {
-            itemsHtml = `<div style="font-size: 0.55rem; color: #c0392b;">Detail menu tidak terbaca</div>`;
-        }
-
-        const firebaseKey = order.key || '';
-        const isPaid = order.paymentStatus === 'PAID' || order.paymentStatus === 'LUNAS';
-
-        const statusBadgeHtml = isPaid
-            ? `<span style="background: #27ae60; color: #fff; padding: 3px 6px; font-size: 0.5rem; border: 2px solid var(--c-purple); font-weight: bold;">[LUNAS]</span>`
-            : `<span style="background: #e74c3c; color: #fff; padding: 3px 6px; font-size: 0.5rem; border: 2px solid var(--c-purple); font-weight: bold;">[BELUM BAYAR]</span>`;
-
-        const confirmPayBtnHtml = !isPaid
-            ? `<button class="btn" onclick="confirmPayment('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 6px 10px; cursor: pointer; background: #27ae60; color: #fff;">KONFIRMASI LUNAS</button>`
-            : '';
-
-        const customerInfo = order.prodi && order.prodi !== '-' 
-            ? `${order.customer || 'Pembeli'} (${order.prodi})` 
-            : (order.customer || 'Pembeli');
-
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <div style="background: var(--c-purple); color: var(--c-yellow); padding: 5px 8px; font-size: 0.65rem; font-weight: bold;">
-                        [${order.id || 'REQ-001'}]
-                    </div>
-                    ${statusBadgeHtml}
-                </div>
-
-                <div style="display: flex; gap: 6px; align-items: center;">
-                    ${confirmPayBtnHtml}
-                    <button class="btn btn-invert" onclick="completeOrder('${firebaseKey}', '${order.id}')" style="font-size: 0.55rem; padding: 6px 12px; cursor: pointer;">DONE</button>
-                </div>
-            </div>
-            
-            <div style="font-size: 0.75rem; font-weight: bold; color: var(--c-purple); margin-bottom: 10px;">
-                > ${customerInfo}
-            </div>
-
-            ${itemsHtml}
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.65rem; font-weight: bold; color: var(--c-purple); border-top: 2px dashed var(--c-purple); padding-top: 8px;">
-                <span style="color: #728c28;">RP ${formatNumber(order.total || 0)}</span>
-                <span>${order.time || ''}</span>
-            </div>
-        `;
-        questLogContainer.appendChild(card);
-    });
-};
-
-/**
- * Render Grafik & Rekap Stats
- */
-const renderRekapStats = () => {
-    const totalOmzet = completedOrdersList.reduce((sum, o) => sum + (parseInt(o.total) || 0), 0);
-    if (omzetEl) omzetEl.textContent = formatNumber(totalOmzet);
-    if (totalOrdersCountEl) totalOrdersCountEl.textContent = completedOrdersList.length;
-
-    const baseCounts = {};
-    baseList.forEach(b => baseCounts[b] = 0);
-
-    const toppingCounts = {};
-    toppingList.forEach(t => toppingCounts[t] = 0);
-
-    completedOrdersList.forEach(order => {
-        if (order.items && Array.isArray(order.items)) {
-            order.items.forEach(item => {
-                const qty = item.qty || 1;
-                const rawBase = item.base || item.name || item.title;
-                if (rawBase) {
-                    const matchedBase = baseList.find(b => b.toLowerCase().trim() === rawBase.toLowerCase().trim()) || rawBase;
-                    baseCounts[matchedBase] = (baseCounts[matchedBase] || 0) + qty;
-                }
-
-                if (item.toppings && Array.isArray(item.toppings)) {
-                    item.toppings.forEach(top => {
-                        const matchedTop = toppingList.find(t => t.toLowerCase().trim() === top.toLowerCase().trim()) || top;
-                        toppingCounts[matchedTop] = (toppingCounts[matchedTop] || 0) + qty;
-                    });
-                }
-            });
+    allLocalOrders.forEach(ord => {
+        if (ord && ord.id) {
+            const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
+            if (num > maxNum) maxNum = num;
         }
     });
 
-    const maxBaseCount = Math.max(...Object.values(baseCounts), 1);
-    const maxToppingCount = Math.max(...Object.values(toppingCounts), 1);
+    const lastCounter = parseInt(localStorage.getItem('kacau_order_counter'), 10) || 0;
+    if (lastCounter > maxNum) maxNum = lastCounter;
 
-    const sortedBases = Object.keys(baseCounts).sort((a, b) => {
-        const countDiff = baseCounts[b] - baseCounts[a];
-        if (countDiff !== 0) return countDiff;
-        return a.toLowerCase().localeCompare(b.toLowerCase());
-    });
+    const nextNum = maxNum + 1;
+    localStorage.setItem('kacau_order_counter', nextNum);
 
-    const baseContainer = document.getElementById('base-rekap-list');
-    if (baseContainer) {
-        baseContainer.innerHTML = '';
-        sortedBases.forEach(name => {
-            const count = baseCounts[name];
-            const barWidth = (count / maxBaseCount) * 100;
-
-            const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple); margin-bottom: 6px;';
-            row.innerHTML = `
-                <div style="width: 110px; flex-shrink: 0; font-weight: bold;">${name}</div>
-                <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
-                    <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
-                </div>
-                <div style="width: 25px; text-align: right; font-weight: bold; font-size: 0.6rem;">${count}</div>
-            `;
-            baseContainer.appendChild(row);
-        });
-    }
-
-    const sortedToppings = Object.keys(toppingCounts).sort((a, b) => {
-        const countDiff = toppingCounts[b] - toppingCounts[a];
-        if (countDiff !== 0) return countDiff;
-        return a.toLowerCase().localeCompare(b.toLowerCase());
-    });
-
-    const toppingContainer = document.getElementById('topping-rekap-list');
-    if (toppingContainer) {
-        toppingContainer.innerHTML = '';
-        sortedToppings.forEach(name => {
-            const count = toppingCounts[name];
-            const barWidth = (count / maxToppingCount) * 100;
-
-            const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 0.55rem; color: var(--c-purple); margin-bottom: 6px;';
-            row.innerHTML = `
-                <div style="width: 110px; flex-shrink: 0; font-weight: bold;">${name}</div>
-                <div style="flex: 1; height: 18px; border: 3px solid var(--c-purple); background: var(--c-yellow); position: relative; box-sizing: border-box;">
-                    <div style="height: 100%; width: ${barWidth}%; background: var(--c-purple); transition: width 0.3s ease;"></div>
-                </div>
-                <div style="width: 25px; text-align: right; font-weight: bold; font-size: 0.6rem;">${count}</div>
-            `;
-            toppingContainer.appendChild(row);
-        });
-    }
+    return `REQ-${String(nextNum).padStart(3, '0')}`;
 };
 
 /**
- * Render Input Controls Manajemen Stok (Default 0 & Konsisten)
+ * LocalStorage Cart Management
  */
-const renderStockManagementUI = () => {
-    const baseStockContainer = document.getElementById('seller-base-stock-list');
-    const toppingStockContainer = document.getElementById('seller-topping-stock-list');
+const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
+const saveCartData = (cart) => {
+    localStorage.setItem('kacau_cart', JSON.stringify(cart));
+    updateCartBadge();
+};
 
-    if (!currentStock.bases) currentStock.bases = { ...defaultStock.bases };
-    if (!currentStock.toppings) currentStock.toppings = { ...defaultStock.toppings };
-
-    const btnStyle = "background: var(--c-purple); color: var(--c-yellow); border: none; width: 24px; height: 24px; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;";
-    const inputStyle = "width: 45px; height: 24px; text-align: center; border: 2px solid var(--c-purple); font-family: inherit; font-size: 0.6rem; padding: 0; box-sizing: border-box;";
-
-    if (baseStockContainer) {
-        baseStockContainer.innerHTML = '';
-        baseList.forEach(baseName => {
-            const val = currentStock.bases[baseName] !== undefined ? currentStock.bases[baseName] : 0;
-            const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple); margin-bottom: 4px;';
-            row.innerHTML = `
-                <span style="font-weight: bold; color: var(--c-purple);">${baseName}</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button onclick="updateStockItem('bases', '${baseName}', -1)" style="${btnStyle}">-</button>
-                    <input type="number" value="${val}" onchange="setStockItem('bases', '${baseName}', this.value)" style="${inputStyle}">
-                    <button onclick="updateStockItem('bases', '${baseName}', 1)" style="${btnStyle}">+</button>
-                </div>
-            `;
-            baseStockContainer.appendChild(row);
-        });
-    }
-
-    if (toppingStockContainer) {
-        toppingStockContainer.innerHTML = '';
-        toppingList.forEach(topName => {
-            const val = currentStock.toppings[topName] !== undefined ? currentStock.toppings[topName] : 0;
-            const row = document.createElement('div');
-            row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; font-size: 0.55rem; background: #fff; padding: 6px 10px; border: 2px solid var(--c-purple); margin-bottom: 4px;';
-            row.innerHTML = `
-                <span style="font-weight: bold; color: var(--c-purple);">${topName}</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button onclick="updateStockItem('toppings', '${topName}', -1)" style="${btnStyle}">-</button>
-                    <input type="number" value="${val}" onchange="setStockItem('toppings', '${topName}', this.value)" style="${inputStyle}">
-                    <button onclick="updateStockItem('toppings', '${topName}', 1)" style="${btnStyle}">+</button>
-                </div>
-            `;
-            toppingStockContainer.appendChild(row);
-        });
-    }
+const updateCartBadge = () => {
+    const cart = getCartData();
+    const totalItems = cart.reduce((sum, item) => sum + (item.qty || 1), 0);
+    if (domCartCount) domCartCount.textContent = totalItems;
 };
 
 /**
- * Functions Update Stok Manual Dari Input Kasir
+ * Mengambil Stok Database
  */
-window.updateStockItem = (type, itemKey, delta) => {
-    const currentVal = currentStock[type][itemKey] !== undefined ? currentStock[type][itemKey] : 0;
-    const newVal = Math.max(0, currentVal + delta);
-    setStockItem(type, itemKey, newVal);
-};
+const getStockValue = (categoryObj, targetName) => {
+    if (!categoryObj || !targetName) return 0;
+    if (categoryObj[targetName] !== undefined) return parseInt(categoryObj[targetName]) || 0;
 
-window.setStockItem = (type, itemKey, newVal) => {
-    const val = Math.max(0, parseInt(newVal) || 0);
-    if (!currentStock[type]) currentStock[type] = {};
-    currentStock[type][itemKey] = val;
+    const targetLower = String(targetName).toLowerCase().trim();
+    const foundKey = Object.keys(categoryObj).find(k => String(k).toLowerCase().trim() === targetLower);
 
-    if (typeof db !== 'undefined') {
-        db.ref(`kacau_inventory/${type}/${itemKey}`).set(val);
-    }
-    localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
-    renderStockManagementUI();
+    return foundKey !== undefined ? (parseInt(categoryObj[foundKey]) || 0) : 0;
 };
 
 /**
- * Pemotongan Stok Produk di Database Saat Pesanan Dikonfirmasi Lunas
+ * Potong Stok Berdasarkan Nama Varian & Topping
  */
-const deductStockForOrder = (items) => {
+const deductInventoryStock = (items) => {
     if (!items || !Array.isArray(items)) return;
 
     items.forEach(item => {
-        const qty = item.qty || 1;
-        const rawBase = item.base || item.name || item.title;
+        const qty = parseInt(item.qty) || 1;
 
-        if (rawBase) {
-            const matchedBase = baseList.find(b => b.toLowerCase().trim() === rawBase.toLowerCase().trim()) || rawBase;
-            if (currentStock.bases && currentStock.bases[matchedBase] !== undefined) {
-                currentStock.bases[matchedBase] = Math.max(0, currentStock.bases[matchedBase] - qty);
+        // 1. Potong Stok Base
+        if (item.base) {
+            const targetBaseLower = String(item.base).trim().toLowerCase();
+            const actualBaseKey = Object.keys(inventoryStock.bases || {}).find(
+                key => String(key).trim().toLowerCase() === targetBaseLower
+            );
+
+            if (actualBaseKey) {
+                const currentStock = parseInt(inventoryStock.bases[actualBaseKey]) || 0;
+                const newStock = Math.max(0, currentStock - qty);
+                inventoryStock.bases[actualBaseKey] = newStock;
+
+                if (typeof db !== 'undefined') {
+                    db.ref(`kacau_inventory/bases/${actualBaseKey}`).set(newStock);
+                }
             }
         }
 
+        // 2. Potong Stok Topping
         if (item.toppings && Array.isArray(item.toppings)) {
-            item.toppings.forEach(top => {
-                const matchedTop = toppingList.find(t => t.toLowerCase().trim() === top.toLowerCase().trim()) || top;
-                if (currentStock.toppings && currentStock.toppings[matchedTop] !== undefined) {
-                    currentStock.toppings[matchedTop] = Math.max(0, currentStock.toppings[matchedTop] - qty);
+            item.toppings.forEach(topName => {
+                const targetTopLower = String(topName).trim().toLowerCase();
+                const actualTopKey = Object.keys(inventoryStock.toppings || {}).find(
+                    key => String(key).trim().toLowerCase() === targetTopLower
+                );
+
+                if (actualTopKey) {
+                    const currentStock = parseInt(inventoryStock.toppings[actualTopKey]) || 0;
+                    const newStock = Math.max(0, currentStock - qty);
+                    inventoryStock.toppings[actualTopKey] = newStock;
+
+                    if (typeof db !== 'undefined') {
+                        db.ref(`kacau_inventory/toppings/${actualTopKey}`).set(newStock);
+                    }
                 }
             });
         }
     });
 
-    if (typeof db !== 'undefined') {
-        db.ref('kacau_inventory').set(currentStock);
-    }
-    localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
-    renderStockManagementUI();
+    localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
 };
 
 /**
- * Konfirmasi Lunas & Complete Order (LANGSUNG POTONG STOK DI SINI)
+ * Hitung Sisa Stok dari Database Kasir
  */
-window.confirmPayment = (firebaseKey, orderId) => {
-    const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
+const getAvailableBaseStock = () => {
+    if (!currentSelection.base) return 0;
+    return getStockValue(inventoryStock.bases, currentSelection.base);
+};
 
-    // 1. Potong Stok Otomatis Saat Tombol Konfirmasi Lunas Diklik
-    if (targetOrder && targetOrder.items) {
-        deductStockForOrder(targetOrder.items);
+/**
+ * Validasi Stok Topping
+ */
+const validateAccumulatedToppingStock = (itemPayload) => {
+    if (!itemPayload || !itemPayload.toppings || !Array.isArray(itemPayload.toppings)) return true;
+
+    const cupQty = itemPayload.qty || 1;
+    for (let topName of itemPayload.toppings) {
+        const dbStock = getStockValue(inventoryStock.toppings, topName);
+        if (cupQty > dbStock) {
+            showCustomAlert(`Stok topping ${topName} cuma sisa ${dbStock} porsi, tidak cukup untuk ${cupQty} cup!`);
+            return false;
+        }
     }
+    return true;
+};
 
-    // 2. Update Status Pembayaran di Firebase DB
-    if (typeof db !== 'undefined' && firebaseKey) {
-        db.ref('kacau_orders/' + firebaseKey).update({
-            paymentStatus: 'PAID'
+/**
+ * WhatsApp dengan Template Bukti Pembayaran
+ */
+const generateWALink = (payload) => {
+    const itemsText = payload.items.map(item => {
+        const topStr = item.toppings && item.toppings.length > 0 ? ` (+ ${item.toppings.join(', ')})` : '';
+        return `- ${item.qty}x ${item.base}${topStr}`;
+    }).join('\n');
+
+    const messageTemplate = 
+`LAMPIRKAN BUKTI PEMBAYARAN!
+harap mengisi data berikut.
+NAMA: ${payload.customer}
+PRODI: ${payload.prodi}
+
+--- DETAIL PESANAN [${payload.id}] ---
+${itemsText}
+TOTAL: RP ${formatNumber(payload.total)}
+-------------------------------------
+(Silakan lampirkan foto/screenshot bukti transfer QRIS di bawah pesan ini)`;
+
+    return `https://wa.me/${SELLER_WA_NUMBER}?text=${encodeURIComponent(messageTemplate)}`;
+};
+
+/**
+ * Stok Pembeli
+ */
+const initBuyerStockListener = () => {
+    const updateBuyerStockUI = (stockData) => {
+        inventoryStock = stockData || { bases: {}, toppings: {} };
+
+        document.querySelectorAll('.card').forEach(card => {
+            const isBase = card.dataset.type === 'base';
+            const category = isBase ? 'bases' : 'toppings';
+            const name = card.dataset.name;
+
+            const dbStockVal = getStockValue(inventoryStock[category], name);
+            const selectBtn = card.querySelector('.select-btn');
+
+            if (dbStockVal <= 0) {
+                card.classList.add('out-of-stock');
+                card.style.opacity = '0.5';
+                card.style.pointerEvents = 'none';
+
+                if (isBase && currentSelection.base === name) {
+                    resetSelection();
+                } else if (!isBase && currentToppings.has(name)) {
+                    currentToppings.delete(name);
+                    updateSummaryUI();
+                }
+
+                if (selectBtn) {
+                    selectBtn.textContent = 'HABIS';
+                    selectBtn.style.background = '#7f8c8d';
+                    selectBtn.style.borderColor = '#7f8c8d';
+                    selectBtn.style.color = '#fff';
+                }
+            } else {
+                card.classList.remove('out-of-stock');
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+
+                if (selectBtn && !card.classList.contains('selected')) {
+                    selectBtn.textContent = isBase ? 'PILIH' : 'TAMBAH';
+                    selectBtn.style.background = '';
+                    selectBtn.style.borderColor = '';
+                    selectBtn.style.color = '';
+                }
+            }
+        });
+    };
+
+    if (typeof db !== 'undefined') {
+        db.ref('kacau_inventory').on('value', (snapshot) => {
+            updateBuyerStockUI(snapshot.val());
+        });
+    } else {
+        const localStock = JSON.parse(localStorage.getItem('kacau_stock'));
+        updateBuyerStockUI(localStock);
+    }
+};
+
+/**
+ * Kalkulasi Total Harga
+ */
+const updateSummaryUI = () => {
+    let singleUnitPrice = currentSelection.price;
+    currentToppings.forEach((price) => { singleUnitPrice += price; });
+
+    const grandTotal = singleUnitPrice * currentQty;
+    if (domTotal) domTotal.textContent = formatNumber(grandTotal);
+
+    if (currentSelection.base && currentQty > 0) {
+        const toppingList = Array.from(currentToppings.keys());
+        directCheckoutCup = {
+            base: currentSelection.base,
+            toppings: toppingList,
+            qty: currentQty,
+            unitPrice: singleUnitPrice,
+            total: grandTotal
+        };
+    } else {
+        directCheckoutCup = null;
+    }
+};
+
+/**
+ * Reset Pilihan Menu Utama
+ */
+const resetSelection = () => {
+    currentSelection = { base: null, price: 0, node: null };
+    currentToppings.clear();
+    currentQty = 0;
+    if (qtyValEl) qtyValEl.value = '0';
+    directCheckoutCup = null;
+
+    document.querySelectorAll('.card').forEach(card => {
+        if (!card.classList.contains('out-of-stock')) {
+            card.classList.remove('selected');
+            const selectBtn = card.querySelector('.select-btn');
+            if (selectBtn) {
+                selectBtn.classList.remove('active-state');
+                selectBtn.textContent = card.dataset.type === 'base' ? 'PILIH' : 'TAMBAH';
+            }
+        }
+    });
+
+    updateSummaryUI();
+};
+
+/**
+ * Handling Klik Kartu Produk
+ */
+const handleCardSelection = (card, selectBtn, type, name, price) => {
+    if (card.classList.contains('out-of-stock')) return;
+
+    if (type === 'base') {
+        if (currentSelection.node && currentSelection.node !== card) {
+            currentSelection.node.classList.remove('selected');
+            const prevBtn = currentSelection.node.querySelector('.select-btn');
+            if (prevBtn && !currentSelection.node.classList.contains('out-of-stock')) {
+                prevBtn.classList.remove('active-state');
+                prevBtn.textContent = 'PILIH';
+            }
+        }
+
+        if (currentSelection.base === name) {
+            currentSelection = { base: null, price: 0, node: null };
+            card.classList.remove('selected');
+            if (selectBtn) {
+                selectBtn.classList.remove('active-state');
+                selectBtn.textContent = 'PILIH';
+            }
+            currentQty = 0;
+            if (qtyValEl) qtyValEl.value = '0';
+        } else {
+            currentSelection = { base: name, price: price, node: card };
+            card.classList.add('selected');
+            if (selectBtn) {
+                selectBtn.classList.add('active-state');
+                selectBtn.textContent = 'TERPILIH';
+            }
+
+            const maxStock = getAvailableBaseStock();
+            if (maxStock <= 0) {
+                showCustomAlert(`Stok ${name} sedang habis.`);
+                resetSelection();
+                return;
+            }
+
+            if (currentQty === 0) {
+                currentQty = 1;
+                if (qtyValEl) qtyValEl.value = '1';
+            } else if (currentQty > maxStock) {
+                currentQty = maxStock;
+                if (qtyValEl) qtyValEl.value = currentQty;
+            }
+        }
+    } else if (type === 'topping') {
+        if (currentToppings.has(name)) {
+            currentToppings.delete(name);
+            card.classList.remove('selected');
+            if (selectBtn) {
+                selectBtn.classList.remove('active-state');
+                selectBtn.textContent = 'TAMBAH';
+            }
+        } else {
+            currentToppings.set(name, price);
+            card.classList.add('selected');
+            if (selectBtn) {
+                selectBtn.classList.add('active-state');
+                selectBtn.textContent = 'TERPILIH';
+            }
+        }
+    }
+    updateSummaryUI();
+};
+
+document.querySelectorAll('.card').forEach(card => {
+    const selectBtn = card.querySelector('.select-btn');
+    const type = card.dataset.type;
+    const name = card.dataset.name;
+    const price = parseInt(card.dataset.price) || 0;
+
+    card.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        handleCardSelection(card, selectBtn, type, name, price);
+    });
+
+    if (selectBtn) {
+        selectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleCardSelection(card, selectBtn, type, name, price);
         });
     }
+});
 
-    // 3. Update LocalStorage Status
-    let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
-    localOrders = localOrders.map(o => {
-        if (o.id === orderId) {
-            return { ...o, paymentStatus: 'PAID' };
-        }
-        return o;
-    });
-    localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
-
-    if (typeof db === 'undefined') {
-        activeOrdersList = localOrders;
-        renderSellerDashboard();
+const validateBaseSelected = () => {
+    if (!currentSelection.base) {
+        showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+        return false;
     }
+    return true;
 };
 
-window.completeOrder = (firebaseKey, orderId) => {
-    const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
-    if (!targetOrder) return;
+// Kontrol Kuantitas (-)
+if (qtyMinusBtn) {
+    qtyMinusBtn.onclick = () => {
+        if (!validateBaseSelected()) return;
+        if (currentQty > 0) {
+            currentQty--;
+            if (qtyValEl) qtyValEl.value = currentQty;
+            updateSummaryUI();
+        }
+    };
+}
 
-    const orderData = { ...targetOrder, paymentStatus: 'PAID' };
-    delete orderData.key;
+// Kontrol Kuantitas (+)
+if (qtyPlusBtn) {
+    qtyPlusBtn.onclick = () => {
+        if (!validateBaseSelected()) return;
 
-    if (typeof db !== 'undefined' && firebaseKey) {
-        db.ref('kacau_completed_orders').push(orderData);
-        db.ref('kacau_orders/' + firebaseKey).remove();
-    }
+        const maxStock = getAvailableBaseStock();
+        if (currentQty >= maxStock) {
+            showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} porsi!`);
+            return;
+        }
 
-    let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
-    localOrders = localOrders.filter(o => o.id !== orderId);
-    localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
+        currentQty++;
+        if (qtyValEl) qtyValEl.value = currentQty;
+        updateSummaryUI();
+    };
+}
 
-    let localCompleted = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
-    localCompleted.push(orderData);
-    localStorage.setItem('kacau_completed_orders', JSON.stringify(localCompleted));
+// Input Kuantitas Manual
+if (qtyValEl) {
+    qtyValEl.onfocus = () => {
+        if (!currentSelection.base) {
+            qtyValEl.blur();
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            return;
+        }
+        if (qtyValEl.value === '0' || qtyValEl.value === 0) qtyValEl.value = '';
+        else qtyValEl.select();
+    };
 
-    if (typeof db === 'undefined') {
-        activeOrdersList = localOrders;
-        completedOrdersList = localCompleted;
-        renderSellerDashboard();
-        renderRekapStats();
-    }
+    qtyValEl.oninput = (e) => {
+        if (!currentSelection.base) {
+            qtyValEl.value = '0';
+            currentQty = 0;
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            updateSummaryUI();
+            return;
+        }
+
+        let valStr = e.target.value;
+        if (valStr === '') {
+            currentQty = 0;
+        } else {
+            let val = parseInt(valStr);
+            if (isNaN(val) || val < 0) val = 0;
+
+            const maxStock = getAvailableBaseStock();
+            if (val > maxStock) {
+                val = maxStock;
+                showCustomAlert(`Stok ${currentSelection.base} cuma sisa ${maxStock} porsi!`);
+            }
+            currentQty = val;
+        }
+        updateSummaryUI();
+    };
+
+    qtyValEl.onblur = (e) => {
+        if (e.target.value === '' || isNaN(parseInt(e.target.value))) {
+            qtyValEl.value = currentQty;
+        }
+    };
+}
+
+// Tambah ke Keranjang
+if (addToCartBtn) {
+    addToCartBtn.addEventListener('click', () => {
+        if (!currentSelection.base) {
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            return;
+        }
+        if (currentQty <= 0) {
+            showCustomAlert('Tentukan jumlah/kuantitas pesanan kamu dulu.');
+            return;
+        }
+
+        const maxStock = getAvailableBaseStock();
+        if (currentQty > maxStock) {
+            showCustomAlert(`Stok ${currentSelection.base} tidak mencukupi (sisa ${maxStock}).`);
+            return;
+        }
+
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
+        const cart = getCartData();
+        const currentToppingList = Array.from(currentToppings.keys()).sort();
+        
+        let singleUnitPrice = currentSelection.price;
+        currentToppings.forEach(p => singleUnitPrice += p);
+
+        const existingIndex = cart.findIndex(item => {
+            const sameBase = String(item.base).trim().toLowerCase() === String(currentSelection.base).trim().toLowerCase();
+            
+            const itemToppings = Array.isArray(item.toppings) 
+                ? item.toppings.map(t => String(t).trim().toLowerCase()).sort() 
+                : [];
+            const targetToppings = currentToppingList.map(t => String(t).trim().toLowerCase());
+            
+            const sameToppings = itemToppings.length === targetToppings.length && 
+                                itemToppings.every((val, idx) => val === targetToppings[idx]);
+
+            return sameBase && sameToppings;
+        });
+
+        if (existingIndex !== -1) {
+            const newQty = (cart[existingIndex].qty || 1) + currentQty;
+
+            if (newQty > maxStock) {
+                showCustomAlert(`Total pesanan ${currentSelection.base} di keranjang melebihi stok (sisa: ${maxStock}).`);
+                return;
+            }
+
+            cart[existingIndex].qty = newQty;
+            cart[existingIndex].unitPrice = singleUnitPrice;
+            cart[existingIndex].total = singleUnitPrice * newQty;
+            cart[existingIndex].checked = true;
+        } else {
+            cart.push({
+                id: Date.now(),
+                base: currentSelection.base,
+                toppings: currentToppingList,
+                qty: currentQty,
+                unitPrice: singleUnitPrice,
+                total: singleUnitPrice * currentQty,
+                checked: true
+            });
+        }
+
+        saveCartData(cart);
+        showCustomAlert('Pesanan berhasil ditambahkan ke keranjang!');
+        resetSelection();
+        initBuyerStockListener();
+    });
+}
+
+// Buka Modal Checkout
+if (checkoutBtn) {
+    checkoutBtn.addEventListener('click', () => {
+        if (!currentSelection.base) {
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            return;
+        }
+        if (currentQty <= 0) {
+            showCustomAlert('Tentukan jumlah/kuantitas pesanan kamu dulu.');
+            return;
+        }
+
+        const maxStock = getAvailableBaseStock();
+        if (currentQty > maxStock) {
+            showCustomAlert(`Stok ${currentSelection.base} tidak mencukupi (sisa ${maxStock}).`);
+            return;
+        }
+
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
+        if (modalPayTotal && directCheckoutCup) {
+            modalPayTotal.textContent = formatNumber(directCheckoutCup.total);
+        }
+
+        if (stepInput) stepInput.style.display = 'block';
+        if (stepWaiting) stepWaiting.style.display = 'none';
+
+        if (qrisModal) {
+            qrisModal.classList.remove('hidden');
+            qrisModal.classList.add('active');
+        }
+    });
+}
+
+if (closeQrisBtn) {
+    closeQrisBtn.addEventListener('click', () => {
+        if (activeOrderListenerRef) activeOrderListenerRef.off();
+        if (qrisModal) {
+            qrisModal.classList.add('hidden');
+            qrisModal.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * Konfirmasi Penjual
+ */
+const listenForSellerConfirmation = (firebaseNodeKey) => {
+    if (typeof db === 'undefined') return;
+
+    if (activeOrderListenerRef) activeOrderListenerRef.off();
+
+    activeOrderListenerRef = db.ref(`kacau_orders/${firebaseNodeKey}`);
+    activeOrderListenerRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data && (data.paymentStatus === 'PAID' || data.paymentStatus === 'LUNAS')) {
+            activeOrderListenerRef.off();
+
+            if (waitingStatusBadge) {
+                waitingStatusBadge.style.background = '#27ae60';
+                waitingStatusBadge.style.color = '#fff';
+                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS! 🟢';
+            }
+
+            localStorage.setItem('kacau_latest_order', JSON.stringify(data));
+
+            setTimeout(() => {
+                resetSelection();
+                if (qrisModal) {
+                    qrisModal.classList.add('hidden');
+                    qrisModal.classList.remove('active');
+                }
+                window.location.href = 'receipt.html';
+            }, 1000);
+        }
+    });
 };
 
 /**
- * Wipe / Format Data Handler
+ * Konfirmasi Pembeli (SUDAH BAYAR)
  */
-if (btnFormatData) {
-    btnFormatData.addEventListener('click', () => {
-        if (confirmModal) {
-            confirmModal.classList.remove('hidden');
-            confirmModal.classList.add('active');
-        }
-    });
-}
+if (confirmPayBtn) {
+    confirmPayBtn.addEventListener('click', async () => {
+        const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
+        const prodiInput = document.querySelector('#qris-modal #buyer-prodi') || document.getElementById('buyer-prodi');
 
-if (cancelConfirmBtn) {
-    cancelConfirmBtn.addEventListener('click', () => {
-        if (confirmModal) {
-            confirmModal.classList.add('hidden');
-            confirmModal.classList.remove('active');
-        }
-    });
-}
+        const buyerName = nameInput ? nameInput.value.trim() : '';
+        const buyerProdi = prodiInput ? prodiInput.value.trim() : '-';
 
-if (actionConfirmBtn) {
-    actionConfirmBtn.addEventListener('click', () => {
+        if (!buyerName) {
+            showCustomAlert('Isi nama kamu dulu ya biar pesanannya nggak ketukar.');
+            return;
+        }
+
+        if (!directCheckoutCup) {
+            showCustomAlert('Pilih varian rasa utamanya dulu ya.');
+            return;
+        }
+
+        if (!validateAccumulatedToppingStock(directCheckoutCup)) return;
+
+        deductInventoryStock([directCheckoutCup]);
+
+        const orderId = await getNextOrderId();
+        const now = new Date();
+        const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+
+        const payload = {
+            id: orderId,
+            date: now.toLocaleDateString('id-ID', dateOptions),
+            time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            customer: buyerName,
+            prodi: buyerProdi,
+            items: [directCheckoutCup],
+            total: directCheckoutCup.total,
+            paymentMethod: 'QRIS GoPay',
+            paymentStatus: 'UNPAID'
+        };
+
+        // Link WhatsApp Kasir
+        if (waConfirmLink) {
+            waConfirmLink.href = generateWALink(payload);
+        }
+
+        // Simpan Transaksi Lokal
+        let localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
+        localOrders.push(payload);
+        localStorage.setItem('kacau_orders', JSON.stringify(localOrders));
+        localStorage.setItem('kacau_latest_order', JSON.stringify(payload));
+
+        // Pindah Tampilan ke Step 2 (Menunggu Kasir)
+        if (stepInput) stepInput.style.display = 'none';
+        if (stepWaiting) stepWaiting.style.display = 'block';
+        if (waitingOrderId) waitingOrderId.textContent = orderId;
+        if (waitingStatusBadge) {
+            waitingStatusBadge.style.background = 'var(--c-yellow)';
+            waitingStatusBadge.style.color = 'var(--c-purple)';
+            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
+        }
+
         if (typeof db !== 'undefined') {
-            db.ref('kacau_orders').remove();
-            db.ref('kacau_completed_orders').remove();
-            db.ref('kacau_inventory').set(defaultStock);
-        }
-        localStorage.removeItem('kacau_orders');
-        localStorage.removeItem('kacau_completed_orders');
-        localStorage.removeItem('kacau_order_counter');
-        localStorage.setItem('kacau_stock', JSON.stringify(defaultStock));
-        
-        activeOrdersList = [];
-        completedOrdersList = [];
-        currentStock = JSON.parse(JSON.stringify(defaultStock));
+            const newRef = db.ref('kacau_orders').push();
+            payload.firebaseKey = newRef.key;
+            await newRef.set(payload);
 
-        renderSellerDashboard();
-        renderRekapStats();
-        renderStockManagementUI();
-
-        if (confirmModal) {
-            confirmModal.classList.add('hidden');
-            confirmModal.classList.remove('active');
+            listenForSellerConfirmation(newRef.key);
+        } else {
+            console.error("Firebase Database 'db' tidak terdefinisi.");
         }
     });
 }
 
-// Inisialisasi Utama
-initSellerDatabaseListeners();
+updateCartBadge();
+initBuyerStockListener();
+
+if (cartIconBtn) {
+    cartIconBtn.addEventListener('click', () => {
+        window.location.href = 'cart.html';
+    });
+}

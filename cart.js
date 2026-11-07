@@ -43,6 +43,70 @@ const getCartData = () => JSON.parse(localStorage.getItem('kacau_cart')) || [];
 const saveCartData = (cart) => localStorage.setItem('kacau_cart', JSON.stringify(cart));
 
 /**
+ * Mengambil Stok Database
+ */
+const getStockValue = (categoryObj, targetName) => {
+    if (!categoryObj || !targetName) return 0;
+    if (categoryObj[targetName] !== undefined) return parseInt(categoryObj[targetName]) || 0;
+
+    const targetLower = String(targetName).toLowerCase().trim();
+    const foundKey = Object.keys(categoryObj).find(k => String(k).toLowerCase().trim() === targetLower);
+
+    return foundKey !== undefined ? (parseInt(categoryObj[foundKey]) || 0) : 0;
+};
+
+/**
+ * Potong Stok Database (Base & Topping) Per Item
+ */
+const deductInventoryStock = (items) => {
+    if (!items || !Array.isArray(items)) return;
+
+    items.forEach(item => {
+        const qty = parseInt(item.qty) || 1;
+
+        // 1. Potong Stok Varian
+        if (item.base) {
+            const targetBaseLower = String(item.base).trim().toLowerCase();
+            const actualBaseKey = Object.keys(inventoryStock.bases || {}).find(
+                key => String(key).trim().toLowerCase() === targetBaseLower
+            );
+
+            if (actualBaseKey) {
+                const currentStock = parseInt(inventoryStock.bases[actualBaseKey]) || 0;
+                const newStock = Math.max(0, currentStock - qty);
+                inventoryStock.bases[actualBaseKey] = newStock;
+
+                if (typeof db !== 'undefined') {
+                    db.ref(`kacau_inventory/bases/${actualBaseKey}`).set(newStock);
+                }
+            }
+        }
+
+        // 2. Potong Stok Topping
+        if (item.toppings && Array.isArray(item.toppings)) {
+            item.toppings.forEach(topName => {
+                const targetTopLower = String(topName).trim().toLowerCase();
+                const actualTopKey = Object.keys(inventoryStock.toppings || {}).find(
+                    key => String(key).trim().toLowerCase() === targetTopLower
+                );
+
+                if (actualTopKey) {
+                    const currentStock = parseInt(inventoryStock.toppings[actualTopKey]) || 0;
+                    const newStock = Math.max(0, currentStock - qty);
+                    inventoryStock.toppings[actualTopKey] = newStock;
+
+                    if (typeof db !== 'undefined') {
+                        db.ref(`kacau_inventory/toppings/${actualTopKey}`).set(newStock);
+                    }
+                }
+            });
+        }
+    });
+
+    localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
+};
+
+/**
  * Akumulasi Stok Topping dan Base di Keranjang
  */
 const validateCartStockAvailability = (selectedItems) => {
@@ -87,20 +151,7 @@ const validateCartStockAvailability = (selectedItems) => {
 };
 
 /**
- * Mengambil Stok Database
- */
-const getStockValue = (categoryObj, targetName) => {
-    if (!categoryObj) return 99;
-    if (categoryObj[targetName] !== undefined) return categoryObj[targetName];
-
-    const targetLower = targetName.toLowerCase().trim();
-    const foundKey = Object.keys(categoryObj).find(k => k.toLowerCase().trim() === targetLower);
-
-    return foundKey !== undefined ? categoryObj[foundKey] : 99;
-};
-
-/**
- * Stok Real-time di Halaman Keranjang
+ * Stok di Halaman Keranjang
  */
 const initCartStockListener = () => {
     const updateStockData = (stockData) => {
@@ -144,13 +195,31 @@ TOTAL: RP ${formatNumber(payload.total)}
 /**
  * Auto Increment Order ID
  */
-const getNextOrderId = () => {
+const getNextOrderId = async () => {
     let maxNum = 0;
+
+    if (typeof db !== 'undefined') {
+        try {
+            const snapshot = await db.ref('kacau_orders').once('value');
+            const firebaseOrders = snapshot.val();
+            if (firebaseOrders) {
+                Object.values(firebaseOrders).forEach(ord => {
+                    if (ord && ord.id) {
+                        const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
+                        if (num > maxNum) maxNum = num;
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("Gagal mengambil counter order dari Firebase:", err);
+        }
+    }
+
     const localActive = JSON.parse(localStorage.getItem('kacau_orders')) || [];
     const localCompleted = JSON.parse(localStorage.getItem('kacau_completed_orders')) || [];
-    const allOrders = [...localActive, ...localCompleted];
+    const allLocalOrders = [...localActive, ...localCompleted];
 
-    allOrders.forEach(ord => {
+    allLocalOrders.forEach(ord => {
         if (ord && ord.id) {
             const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
             if (num > maxNum) maxNum = num;
@@ -473,8 +542,9 @@ if (confirmPayBtn) {
         const selectedItems = cart.filter(item => item.checked !== false);
         const remainingItems = cart.filter(item => item.checked === false);
 
-        if (!validateCartStockAvailability(selectedItems)) return;
         if (selectedItems.length === 0) return;
+
+        if (!validateCartStockAvailability(selectedItems)) return;
 
         // Pengecekan ulang stok
         for (let item of selectedItems) {
@@ -485,12 +555,14 @@ if (confirmPayBtn) {
             }
         }
 
+        deductInventoryStock(selectedItems);
+
         const totalToPay = selectedItems.reduce((sum, item) => {
             const qty = item.qty || 1;
             return sum + (item.total || ((item.unitPrice || 5000) * qty));
         }, 0);
 
-        const orderId = getNextOrderId();
+        const orderId = await getNextOrderId();
         const now = new Date();
         const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
 
@@ -546,6 +618,5 @@ if (confirmPayBtn) {
     };
 }
 
-// Inisialisasi awal
 initCartStockListener();
 renderCart();
