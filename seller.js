@@ -13,7 +13,7 @@ const confirmModal = document.getElementById('confirm-modal');
 const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
 const actionConfirmBtn = document.getElementById('action-confirm-btn');
 
-// List Produk Resmi (Match 100% dengan index.html, cart.html & script.js)
+// List Produk Resmi
 const baseList = [
     "Original", "Blueberry", "Grape", "Guava", "Mango", 
     "Melon", "Strawberry", "Bubble Gum", "Cookies and Cream", "Chocolate"

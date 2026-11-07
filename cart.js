@@ -1,8 +1,9 @@
-// Nomor WhatsApp
+// Nomor WhatsApp Penjual
 const SELLER_WA_NUMBER = "6281233209503";
 
 let activeCartListenerRef = null;
 let inventoryStock = { bases: {}, toppings: {} };
+let isDeductingCartStock = false;
 
 // DOM Custom Alert Elements
 const alertModal = document.getElementById('alert-modal');
@@ -23,12 +24,12 @@ const showCustomAlert = (pesan) => {
 };
 
 if (btnCloseAlert) {
-    btnCloseAlert.addEventListener('click', () => {
+    btnCloseAlert.onclick = () => {
         if (alertModal) {
             alertModal.classList.add('hidden');
             alertModal.classList.remove('active');
         }
-    });
+    };
 }
 
 /**
@@ -56,10 +57,11 @@ const getStockValue = (categoryObj, targetName) => {
 };
 
 /**
- * Potong Stok Database (Base & Topping) Per Item
+ * Potong Stok Database
  */
 const deductInventoryStock = (items) => {
-    if (!items || !Array.isArray(items)) return;
+    if (!items || !Array.isArray(items) || isDeductingCartStock) return;
+    isDeductingCartStock = true;
 
     items.forEach(item => {
         const qty = parseInt(item.qty) || 1;
@@ -104,6 +106,10 @@ const deductInventoryStock = (items) => {
     });
 
     localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
+
+    setTimeout(() => {
+        isDeductingCartStock = false;
+    }, 1000);
 };
 
 /**
@@ -453,7 +459,7 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
             if (waitingStatusBadge) {
                 waitingStatusBadge.style.background = '#27ae60';
                 waitingStatusBadge.style.color = '#fff';
-                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS! 🟢';
+                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS!';
             }
 
             localStorage.setItem('kacau_latest_order', JSON.stringify(data));
@@ -555,6 +561,7 @@ if (confirmPayBtn) {
             }
         }
 
+        // Potong stok
         deductInventoryStock(selectedItems);
 
         const totalToPay = selectedItems.reduce((sum, item) => {
@@ -603,7 +610,7 @@ if (confirmPayBtn) {
         if (waitingStatusBadge) {
             waitingStatusBadge.style.background = 'var(--c-yellow)';
             waitingStatusBadge.style.color = 'var(--c-purple)';
-            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
+            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR';
         }
 
         if (typeof db !== 'undefined') {

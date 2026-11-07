@@ -1,12 +1,13 @@
 // Nomor WhatsApp Penjual
 const SELLER_WA_NUMBER = "6281233209503";
 
-// State Pilihan Menu Utama
+// Pilihan Menu Utama
 let currentSelection = { base: null, price: 0, node: null };
 let currentToppings = new Map();
 let currentQty = 0;
 let directCheckoutCup = null;
 let activeOrderListenerRef = null;
+let isDeductingStock = false;
 
 // Real-time Inventory State
 let inventoryStock = { bases: {}, toppings: {} };
@@ -62,12 +63,12 @@ const showCustomAlert = (pesan) => {
 };
 
 if (btnCloseAlert) {
-    btnCloseAlert.addEventListener('click', () => {
+    btnCloseAlert.onclick = () => {
         if (alertModal) {
             alertModal.classList.add('hidden');
             alertModal.classList.remove('active');
         }
-    });
+    };
 }
 
 /**
@@ -129,7 +130,7 @@ const updateCartBadge = () => {
 };
 
 /**
- * Mengambil Stok Database
+ * Mengambil Stok Database (Case-Insensitive Presisi)
  */
 const getStockValue = (categoryObj, targetName) => {
     if (!categoryObj || !targetName) return 0;
@@ -142,15 +143,16 @@ const getStockValue = (categoryObj, targetName) => {
 };
 
 /**
- * Potong Stok Berdasarkan Nama Varian & Topping
+ * Potong Stok Varian & Topping
  */
 const deductInventoryStock = (items) => {
-    if (!items || !Array.isArray(items)) return;
+    if (!items || !Array.isArray(items) || isDeductingStock) return;
+    isDeductingStock = true;
 
     items.forEach(item => {
         const qty = parseInt(item.qty) || 1;
 
-        // 1. Potong Stok Base
+        // 1. Potong Stok Base (Varian Utama)
         if (item.base) {
             const targetBaseLower = String(item.base).trim().toLowerCase();
             const actualBaseKey = Object.keys(inventoryStock.bases || {}).find(
@@ -190,6 +192,10 @@ const deductInventoryStock = (items) => {
     });
 
     localStorage.setItem('kacau_stock', JSON.stringify(inventoryStock));
+
+    setTimeout(() => {
+        isDeductingStock = false;
+    }, 1000);
 };
 
 /**
@@ -242,7 +248,7 @@ TOTAL: RP ${formatNumber(payload.total)}
 };
 
 /**
- * Stok Pembeli
+ * Stok Pembeli Realtime
  */
 const initBuyerStockListener = () => {
     const updateBuyerStockUI = (stockData) => {
@@ -421,16 +427,16 @@ document.querySelectorAll('.card').forEach(card => {
     const name = card.dataset.name;
     const price = parseInt(card.dataset.price) || 0;
 
-    card.addEventListener('click', (e) => {
+    card.onclick = (e) => {
         if (e.target.tagName === 'BUTTON') return;
         handleCardSelection(card, selectBtn, type, name, price);
-    });
+    };
 
     if (selectBtn) {
-        selectBtn.addEventListener('click', (e) => {
+        selectBtn.onclick = (e) => {
             e.stopPropagation();
             handleCardSelection(card, selectBtn, type, name, price);
-        });
+        };
     }
 });
 
@@ -518,7 +524,7 @@ if (qtyValEl) {
 
 // Tambah ke Keranjang
 if (addToCartBtn) {
-    addToCartBtn.addEventListener('click', () => {
+    addToCartBtn.onclick = () => {
         if (!currentSelection.base) {
             showCustomAlert('Pilih varian rasa utamanya dulu ya.');
             return;
@@ -584,12 +590,12 @@ if (addToCartBtn) {
         showCustomAlert('Pesanan berhasil ditambahkan ke keranjang!');
         resetSelection();
         initBuyerStockListener();
-    });
+    };
 }
 
 // Buka Modal Checkout
 if (checkoutBtn) {
-    checkoutBtn.addEventListener('click', () => {
+    checkoutBtn.onclick = () => {
         if (!currentSelection.base) {
             showCustomAlert('Pilih varian rasa utamanya dulu ya.');
             return;
@@ -618,17 +624,17 @@ if (checkoutBtn) {
             qrisModal.classList.remove('hidden');
             qrisModal.classList.add('active');
         }
-    });
+    };
 }
 
 if (closeQrisBtn) {
-    closeQrisBtn.addEventListener('click', () => {
+    closeQrisBtn.onclick = () => {
         if (activeOrderListenerRef) activeOrderListenerRef.off();
         if (qrisModal) {
             qrisModal.classList.add('hidden');
             qrisModal.classList.remove('active');
         }
-    });
+    };
 }
 
 /**
@@ -648,7 +654,7 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
             if (waitingStatusBadge) {
                 waitingStatusBadge.style.background = '#27ae60';
                 waitingStatusBadge.style.color = '#fff';
-                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS! 🟢';
+                waitingStatusBadge.textContent = 'PEMBAYARAN LUNAS!';
             }
 
             localStorage.setItem('kacau_latest_order', JSON.stringify(data));
@@ -669,7 +675,7 @@ const listenForSellerConfirmation = (firebaseNodeKey) => {
  * Konfirmasi Pembeli (SUDAH BAYAR)
  */
 if (confirmPayBtn) {
-    confirmPayBtn.addEventListener('click', async () => {
+    confirmPayBtn.onclick = async () => {
         const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
         const prodiInput = document.querySelector('#qris-modal #buyer-prodi') || document.getElementById('buyer-prodi');
 
@@ -724,7 +730,7 @@ if (confirmPayBtn) {
         if (waitingStatusBadge) {
             waitingStatusBadge.style.background = 'var(--c-yellow)';
             waitingStatusBadge.style.color = 'var(--c-purple)';
-            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR... ⏳';
+            waitingStatusBadge.textContent = 'STATUS: MENUNGGU KASIR';
         }
 
         if (typeof db !== 'undefined') {
@@ -736,14 +742,14 @@ if (confirmPayBtn) {
         } else {
             console.error("Firebase Database 'db' tidak terdefinisi.");
         }
-    });
+    };
 }
 
 updateCartBadge();
 initBuyerStockListener();
 
 if (cartIconBtn) {
-    cartIconBtn.addEventListener('click', () => {
+    cartIconBtn.onclick = () => {
         window.location.href = 'cart.html';
-    });
+    };
 }
