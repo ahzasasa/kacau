@@ -3,6 +3,8 @@ const SELLER_WA_NUMBER = "6281233209503";
 
 let activeCartListenerRef = null;
 let inventoryStock = { bases: {}, toppings: {} };
+
+// Lock variable universal
 let isDeductingCartStock = false;
 
 // DOM Custom Alert Elements
@@ -66,7 +68,7 @@ const deductInventoryStock = (items) => {
     items.forEach(item => {
         const qty = parseInt(item.qty) || 1;
 
-        // 1. Potong Stok Varian
+        // 1. Potong Stok Varian (Base)
         if (item.base) {
             const targetBaseLower = String(item.base).trim().toLowerCase();
             const actualBaseKey = Object.keys(inventoryStock.bases || {}).find(
@@ -109,7 +111,7 @@ const deductInventoryStock = (items) => {
 
     setTimeout(() => {
         isDeductingCartStock = false;
-    }, 1000);
+    }, 1500);
 };
 
 /**
@@ -185,7 +187,6 @@ const generateWALink = (payload) => {
 
     const messageTemplate = 
 `LAMPIRKAN BUKTI PEMBAYARAN!
-harap mengisi data berikut.
 NAMA: ${payload.customer}
 PRODI: ${payload.prodi}
 
@@ -210,6 +211,17 @@ const getNextOrderId = async () => {
             const firebaseOrders = snapshot.val();
             if (firebaseOrders) {
                 Object.values(firebaseOrders).forEach(ord => {
+                    if (ord && ord.id) {
+                        const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
+                        if (num > maxNum) maxNum = num;
+                    }
+                });
+            }
+
+            const completedSnapshot = await db.ref('kacau_completed_orders').once('value');
+            const completedOrders = completedSnapshot.val();
+            if (completedOrders) {
+                Object.values(completedOrders).forEach(ord => {
                     if (ord && ord.id) {
                         const num = parseInt(ord.id.replace('REQ-', ''), 10) || 0;
                         if (num > maxNum) maxNum = num;
@@ -322,7 +334,7 @@ const renderCart = () => {
 };
 
 /**
- * Item Keranjang
+ * Item Keranjang Event Listener
  */
 const attachCartEventListeners = () => {
     let cart = getCartData();
@@ -533,6 +545,8 @@ if (closeQrisBtn) {
  */
 if (confirmPayBtn) {
     confirmPayBtn.onclick = async () => {
+        if (isDeductingCartStock) return;
+
         const nameInput = document.querySelector('#qris-modal #buyer-name') || document.getElementById('buyer-name');
         const prodiInput = document.querySelector('#qris-modal #buyer-prodi') || document.getElementById('buyer-prodi');
 
@@ -552,7 +566,7 @@ if (confirmPayBtn) {
 
         if (!validateCartStockAvailability(selectedItems)) return;
 
-        // Pengecekan ulang stok
+        // Pengecekan ulang stok sebelum potong
         for (let item of selectedItems) {
             const maxStock = getStockValue(inventoryStock.bases, item.base);
             if (item.qty > maxStock) {
@@ -561,7 +575,6 @@ if (confirmPayBtn) {
             }
         }
 
-        // Potong stok
         deductInventoryStock(selectedItems);
 
         const totalToPay = selectedItems.reduce((sum, item) => {

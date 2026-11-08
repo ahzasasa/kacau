@@ -234,7 +234,6 @@ const generateWALink = (payload) => {
 
     const messageTemplate = 
 `LAMPIRKAN BUKTI PEMBAYARAN!
-harap mengisi data berikut.
 NAMA: ${payload.customer}
 PRODI: ${payload.prodi}
 

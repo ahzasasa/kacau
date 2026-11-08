@@ -35,7 +35,7 @@ const toppingList = [
     "Cereal Choco Chips", "Cereal Froot Loops", "Cheese", "Chocolate Sprinkles", "Cookie Crumble"
 ];
 
-// Default Stock diset 0 untuk seluruh produk
+// Default Stock
 const defaultStock = {
     bases: {
         "Original": 0, "Blueberry": 0, "Grape": 0, "Guava": 0, "Mango": 0,
@@ -59,7 +59,7 @@ const formatNumber = (num) => {
 };
 
 /**
- * Custom Retro Alert Notification
+ * Custom Alert Notification
  */
 const showSellerAlert = (pesan) => {
     if (sellerAlertMessage && sellerAlertModal) {
@@ -109,7 +109,6 @@ const initSellerDatabaseListeners = () => {
     const localOrders = JSON.parse(localStorage.getItem('kacau_orders')) || [];
 
     if (typeof db !== 'undefined') {
-        // Listener Pesanan Masuk Real-time
         db.ref('kacau_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             activeOrdersList = [];
@@ -139,7 +138,7 @@ const initSellerDatabaseListeners = () => {
             renderSellerDashboard();
         });
 
-        // Listener Pesanan Selesai Real-time
+        // Listener Pesanan Selesai
         db.ref('kacau_completed_orders').on('value', (snapshot) => {
             const data = snapshot.val();
             completedOrdersList = [];
@@ -153,7 +152,7 @@ const initSellerDatabaseListeners = () => {
             renderRekapStats();
         });
 
-        // Listener Stok Produk Real-time
+        // Listener Stok Produk
         db.ref('kacau_inventory').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.bases && data.toppings) {
@@ -442,49 +441,9 @@ window.setStockItem = (type, itemKey, newVal) => {
 };
 
 /**
- * Pemotongan Stok Produk di Database Saat Pesanan Dikonfirmasi Lunas
- */
-const deductStockForOrder = (items) => {
-    if (!items || !Array.isArray(items)) return;
-
-    items.forEach(item => {
-        const qty = item.qty || 1;
-        const rawBase = item.base || item.name || item.title;
-
-        if (rawBase) {
-            const matchedBase = baseList.find(b => b.toLowerCase().trim() === rawBase.toLowerCase().trim()) || rawBase;
-            if (currentStock.bases && currentStock.bases[matchedBase] !== undefined) {
-                currentStock.bases[matchedBase] = Math.max(0, currentStock.bases[matchedBase] - qty);
-            }
-        }
-
-        if (item.toppings && Array.isArray(item.toppings)) {
-            item.toppings.forEach(top => {
-                const matchedTop = toppingList.find(t => t.toLowerCase().trim() === top.toLowerCase().trim()) || top;
-                if (currentStock.toppings && currentStock.toppings[matchedTop] !== undefined) {
-                    currentStock.toppings[matchedTop] = Math.max(0, currentStock.toppings[matchedTop] - qty);
-                }
-            });
-        }
-    });
-
-    if (typeof db !== 'undefined') {
-        db.ref('kacau_inventory').set(currentStock);
-    }
-    localStorage.setItem('kacau_stock', JSON.stringify(currentStock));
-    renderStockManagementUI();
-};
-
-/**
- * Konfirmasi Lunas & Complete Order
+ * Konfirmasi Lunas oleh Kasir
  */
 window.confirmPayment = (firebaseKey, orderId) => {
-    const targetOrder = activeOrdersList.find(o => (o.key && o.key === firebaseKey) || o.id === orderId);
-
-    if (targetOrder && targetOrder.items) {
-        deductStockForOrder(targetOrder.items);
-    }
-
     if (typeof db !== 'undefined' && firebaseKey) {
         db.ref('kacau_orders/' + firebaseKey).update({
             paymentStatus: 'PAID'
@@ -535,7 +494,7 @@ window.completeOrder = (firebaseKey, orderId) => {
 };
 
 /**
- * FITUR PENCARIAN NOMOR REQ & RECEIPT
+ * Fitur Search REQ & Receipt
  */
 const searchOrderAndShowReceipt = (reqNumber) => {
     if (!reqNumber || !reqNumber.trim()) {
@@ -682,5 +641,4 @@ if (actionConfirmBtn) {
     });
 }
 
-// Inisialisasi Utama
 initSellerDatabaseListeners();
